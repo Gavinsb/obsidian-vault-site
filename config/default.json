@@ -1,0 +1,19 @@
+{
+  "vaultPath": "",
+  "dataDir": "data",
+  "siteName": "Knowledge Vault",
+  "theme": "dark",
+  "ratingScale": 5,
+  "excludedFolders": [".obsidian", ".git", ".trash", "90 Templates"],
+  "excludedFiles": [],
+  "attachmentFolders": ["Attachments"],
+  "gitIntegration": "auto",
+  "fileWatching": true,
+  "indexLocation": "data/index.json",
+  "backupBeforeDestructive": true,
+  "backupDir": "data/backups",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 18790
+  }
+}

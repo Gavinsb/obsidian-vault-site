@@ -1,0 +1,47 @@
+{
+  "name": "obsidian-vault-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local-first microsite UI over an Obsidian knowledge vault. The vault remains the authoritative source; this app is a disposable, rebuildable view/edit layer.",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch src/server/server.ts",
+    "dev:web": "vite",
+    "build": "tsc -p tsconfig.server.json && vite build",
+    "start": "node dist/server/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "qa": "tsx tests/qa/qa.mjs",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "diff": "^7.0.0",
+    "dompurify": "^3.2.4",
+    "express": "^4.21.2",
+    "fast-glob": "^3.3.3",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0",
+    "lucide-react": "^0.469.0",
+    "marked": "^15.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.0",
+    "@types/express": "^4.17.21",
+    "@types/js-yaml": "^4.0.9",
+    "@types/marked": "^6.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}
