@@ -128,7 +128,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
                     <span>{timeAgo(d.mtimeMs)}</span>
                     <RatingStars value={d.rating} size={12} />
                     {d.tags.slice(0, 3).map((t) => (
-                      <span key={t} className="tag-chip">#{t}</span>
+                      <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">#{t}</Link>
                     ))}
                   </div>
                 </li>

@@ -1,6 +1,10 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { VaultOverview } from '../api';
 
 export function SyncBar({ overview }: { overview: VaultOverview | null }) {
+  const [q, setQ] = useState('');
+  const navigate = useNavigate();
   const state = overview?.syncState ?? 'synced';
   const labels: Record<string, string> = {
     synced: `Vault synced · ${overview?.docCount ?? 0} notes`,
@@ -8,11 +12,23 @@ export function SyncBar({ overview }: { overview: VaultOverview | null }) {
     detected: 'External change detected…',
     conflict: 'Conflict detected',
   };
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
+  };
   return (
     <div className={`sync-bar sync-${state}`}>
       <span className="sync-dot" />
-      <span>{labels[state] ?? state}</span>
+      <span className="sync-label">{labels[state] ?? state}</span>
       {overview?.pendingFiles ? <span className="sync-pending">({overview.pendingFiles})</span> : null}
+      <form className="header-search" onSubmit={submit} role="search">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search vault…"
+          aria-label="Search vault"
+        />
+      </form>
     </div>
   );
 }

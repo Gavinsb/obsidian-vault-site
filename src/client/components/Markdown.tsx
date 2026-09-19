@@ -13,6 +13,23 @@ function isExternalHref(href: string): boolean {
   return /^(https?:|mailto:|tel:|data:|javascript:|\/\/|#)/i.test(href);
 }
 
+const FM_RE = /^(?:\uFEFF)?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+
+/** Remove a leading YAML frontmatter block (never render it as article text). */
+export function stripFrontmatter(text: string): string {
+  const m = FM_RE.exec(text);
+  return m ? text.slice(m[0].length) : text;
+}
+
+/** Split the first `# Title` heading from the rest of a body. */
+export function splitTitle(body: string): { title: string; rest: string } {
+  const m = /^#\s+(.+?)[ \t]*$/m.exec(body);
+  if (!m) return { title: '', rest: body };
+  const title = m[1].trim();
+  const rest = body.slice(m.index + m[0].length).replace(/^\r?\n/, '');
+  return { title, rest };
+}
+
 /**
  * Renders Markdown + Obsidian wiki-links/callouts/images into safe HTML.
  * Unsupported Obsidian syntax is left untouched (source integrity) and simply
@@ -55,6 +72,9 @@ export function Markdown({ content }: { content: string }) {
 
 // Renders wiki links as anchors with a data attribute the click handler reads.
 function renderMarkdown(content: string): string {
+  // 0) Strip frontmatter so YAML never leaks into the rendered article.
+  content = stripFrontmatter(content);
+
   // 1) Extract fenced code blocks so we never transform inside them.
   const codeBlocks: string[] = [];
   content = content.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, (m) => {
@@ -69,7 +89,7 @@ function renderMarkdown(content: string): string {
   });
 
   // 3) Wiki links → anchors (store the RAW target, not pre-encoded).
-  content = content.replace(/!?\[\[([^][\n]+?)\]\]/g, (_m, inner) => {
+  content = content.replace(/!?\[\[([^\[\]\n]+?)\]\]/g, (_m, inner) => {
     let target = inner;
     let alias: string | undefined;
     const pipe = inner.indexOf('|');

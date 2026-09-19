@@ -53,15 +53,17 @@ export function GraphView() {
     setPanState(p);
   };
 
-  // Force layout.
+  // Force layout (Fruchterman–Reingold) + fit-to-view so all nodes spread
+  // visibly and never collapse into one blob.
   const layout = useMemo(() => {
     const { nodes, edges } = data;
     const positions = new Map<string, { x: number; y: number }>();
     nodes.forEach((n, i) => {
       const angle = (i / Math.max(1, nodes.length)) * Math.PI * 2;
+      const r = 60 + (i % 7) * 22;
       positions.set(n.id, {
-        x: W / 2 + Math.cos(angle) * 180,
-        y: H / 2 + Math.sin(angle) * 180,
+        x: W / 2 + Math.cos(angle) * r,
+        y: H / 2 + Math.sin(angle) * r,
       });
     });
     const adj = new Map<string, Set<string>>();
@@ -71,33 +73,61 @@ export function GraphView() {
       adj.get(e.source)!.add(e.target);
       adj.get(e.target)!.add(e.source);
     }
-    for (let it = 0; it < 90; it++) {
+    const k = 170; // ideal edge length
+    for (let it = 0; it < 250; it++) {
+      const maxDisp = Math.max(1, 30 * (1 - it / 250));
       for (const n of nodes) {
         const p = positions.get(n.id)!;
+        let fx = 0;
+        let fy = 0;
         for (const m of nodes) {
           if (m.id === n.id) continue;
           const q = positions.get(m.id)!;
           const dx = p.x - q.x;
           const dy = p.y - q.y;
-          const d2 = Math.max(1, dx * dx + dy * dy);
-          const f = 2600 / d2;
-          p.x += (dx / Math.sqrt(d2)) * f;
-          p.y += (dy / Math.sqrt(d2)) * f;
+          const d2 = Math.max(60, dx * dx + dy * dy);
+          const d = Math.sqrt(d2);
+          const f = (k * k) / d; // repulsion
+          fx += (dx / d) * f;
+          fy += (dy / d) * f;
         }
         const neigh = adj.get(n.id);
-        if (neigh) for (const other of neigh) {
-          const q = positions.get(other);
-          if (!q) continue;
-          const dx = q.x - p.x;
-          const dy = q.y - p.y;
-          const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-          const f = (d - 95) * 0.004;
-          p.x += dx * f;
-          p.y += dy * f;
+        if (neigh) {
+          for (const other of neigh) {
+            const q = positions.get(other);
+            if (!q) continue;
+            const dx = q.x - p.x;
+            const dy = q.y - p.y;
+            const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+            const f = (d * d) / k; // attraction
+            fx += (dx / d) * f;
+            fy += (dy / d) * f;
+          }
         }
-        p.x += (W / 2 - p.x) * 0.005;
-        p.y += (H / 2 - p.y) * 0.005;
+        // Symmetric center gravity keeps the cloud balanced (no runaway elongation).
+        fx += (W / 2 - p.x) * 0.04;
+        fy += (H / 2 - p.y) * 0.04;
+        const mag = Math.sqrt(fx * fx + fy * fy) || 1;
+        const disp = Math.min(mag, maxDisp);
+        p.x += (fx / mag) * disp;
+        p.y += (fy / mag) * disp;
       }
+    }
+    // Fit to the viewBox with padding (keeps every node on screen).
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of positions.values()) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    const pad = 70;
+    const sx = maxX - minX > 1 ? (W - pad * 2) / (maxX - minX) : 1;
+    const sy = maxY - minY > 1 ? (H - pad * 2) / (maxY - minY) : 1;
+    const s = Math.min(sx, sy, 1.4);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    for (const p of positions.values()) {
+      p.x = W / 2 + (p.x - cx) * s;
+      p.y = H / 2 + (p.y - cy) * s;
     }
     return positions;
   }, [data]);

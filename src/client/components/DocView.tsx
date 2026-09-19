@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Document } from '../api';
 import { api } from '../api';
-import { Markdown } from './Markdown';
+import { Markdown, stripFrontmatter, splitTitle } from './Markdown';
 import { RatingStars } from './RatingStars';
 import { Breadcrumbs } from './Breadcrumbs';
 
@@ -33,7 +33,7 @@ export function DocView() {
       const d = await api.getDoc(p);
       setDoc(d);
       setDraft(d.content);
-      setBaseHash(computeHash(d.content));
+      setBaseHash(d.meta.contentHash); // SHA-256 baseline (matches server)
       setConflict(null);
     } catch (e) {
       setError(String(e));
@@ -58,7 +58,7 @@ export function DocView() {
         const fresh = await api.getDoc(canonicalPath);
         setDoc((prev) => {
           if (prev && fresh && fresh.content !== prev.content && mode === 'read') {
-            setBaseHash(computeHash(fresh.content));
+            setBaseHash(fresh.meta.contentHash);
             setFlash({ kind: 'info', msg: 'Updated from external change' });
           }
           return fresh;
@@ -70,16 +70,6 @@ export function DocView() {
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canonicalPath, mode]);
-
-  const computeHash = (c: string) => {
-    // Simple FNV-1a; server does real sha256, this is just an edit baseline.
-    let h = 0x811c9dc5;
-    for (let i = 0; i < c.length; i++) {
-      h ^= c.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
-    }
-    return (h >>> 0).toString(16);
-  };
 
   if (loading && !doc) {
     return <div className="view loading">Loading document…</div>;
@@ -103,8 +93,8 @@ export function DocView() {
       await api.rate(canonicalPath, v);
       const d = await api.getDoc(canonicalPath);
       setDoc(d);
-      setBaseHash(computeHash(d.content));
-      setFlash({ kind: 'ok', msg: `Rated ${v}★ — written to frontmatter` });
+      setBaseHash(d.meta.contentHash);
+      setFlash({ kind: 'ok', msg: `Rated ${v}★` });
     } catch (e) {
       setFlash({ kind: 'err', msg: `Failed to save rating: ${e}` });
     }
@@ -115,6 +105,7 @@ export function DocView() {
       await api.setMeta(canonicalPath, { favorite: meta.favorite ? false : true });
       const d = await api.getDoc(canonicalPath);
       setDoc(d);
+      setBaseHash(d.meta.contentHash);
     } catch (e) {
       setFlash({ kind: 'err', msg: String(e) });
     }
@@ -135,7 +126,7 @@ export function DocView() {
       setSavedAt(new Date());
       const d = await api.getDoc(canonicalPath);
       setDoc(d);
-      setBaseHash(computeHash(d.content));
+      setBaseHash(d.meta.contentHash);
       setConflict(null);
       setFlash({ kind: 'ok', msg: 'Saved' });
     } catch (e: any) {
@@ -166,7 +157,7 @@ export function DocView() {
       const d = await api.getDoc(canonicalPath);
       setDoc(d);
       setDraft(d.content);
-      setBaseHash(computeHash(d.content));
+      setBaseHash(d.meta.contentHash);
       setConflict(null);
       setFlash({ kind: 'info', msg: 'Loaded external version' });
     },
@@ -183,6 +174,10 @@ export function DocView() {
       if (!conflict) onSave();
     }, 1200);
   };
+
+  // Read-mode body: title → collapsible metadata → article.
+  const readBody = stripFrontmatter(doc.content);
+  const { title, rest } = splitTitle(readBody);
 
   return (
     <div className="doc-view">
@@ -216,7 +211,6 @@ export function DocView() {
       <div className="doc-rating-bar">
         <span className="rating-label">Rate this page</span>
         <RatingStars value={meta.rating} scale={5} onChange={onRating} size={22} />
-        <span className="muted rating-hint">tap a star to rate 1–5 · saved to frontmatter</span>
       </div>
 
       {(mode === 'edit' || mode === 'split') && (
@@ -242,7 +236,36 @@ export function DocView() {
 
       <div className={`doc-body${mode === 'split' ? ' split' : ''}`}>
         <div className="doc-main">
-          {mode === 'read' && <Markdown content={doc.content} />}
+          {mode === 'read' && (
+            <article className="article">
+              <h1 className="article-title">{title || meta.title}</h1>
+              <details className="collapsible article-meta">
+                <summary>File info</summary>
+                <dl className="meta-list">
+                  <dt>Type</dt>
+                  <dd>{String(meta.frontmatter?.type ?? '—')}</dd>
+                  <dt>Status</dt>
+                  <dd>{meta.status ?? '—'}</dd>
+                  <dt>Aliases</dt>
+                  <dd>{meta.aliases?.length ? meta.aliases.join(', ') : '—'}</dd>
+                  <dt>Created</dt>
+                  <dd>{meta.created ?? fmtDate(meta.ctimeMs)}</dd>
+                  <dt>Modified</dt>
+                  <dd>{meta.updated ?? fmtDate(meta.mtimeMs)}</dd>
+                </dl>
+                {meta.tags.length > 0 && (
+                  <div className="meta-tags">
+                    {meta.tags.map((t) => (
+                      <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
+                        #{t}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </details>
+              <Markdown content={rest} />
+            </article>
+          )}
           {mode === 'split' && (
             <>
               <textarea
@@ -267,36 +290,31 @@ export function DocView() {
         <aside className="doc-context">
           <section className="context-block">
             <h4>File info</h4>
-            <details className="collapsible">
-              <summary>Show metadata</summary>
-              <dl className="meta-list">
-                <dt>Type</dt>
-                <dd>{String(meta.frontmatter?.type ?? '—')}</dd>
-                <dt>Status</dt>
-                <dd>{meta.status ?? '—'}</dd>
-                <dt>Aliases</dt>
-                <dd>{meta.aliases?.length ? meta.aliases.join(', ') : '—'}</dd>
-                <dt>Path</dt>
-                <dd className="mono">{meta.relPath}</dd>
-                <dt>Created</dt>
-                <dd>{meta.created ?? fmtDate(meta.ctimeMs)}</dd>
-                <dt>Modified</dt>
-                <dd>{meta.updated ?? fmtDate(meta.mtimeMs)}</dd>
-                <dt>Words</dt>
-                <dd>{meta.wordCount}</dd>
-              </dl>
+            <dl className="meta-list">
+              <dt>Type</dt>
+              <dd>{String(meta.frontmatter?.type ?? '—')}</dd>
+              <dt>Status</dt>
+              <dd>{meta.status ?? '—'}</dd>
+              <dt>Aliases</dt>
+              <dd>{meta.aliases?.length ? meta.aliases.join(', ') : '—'}</dd>
+              <dt>Path</dt>
+              <dd className="mono">{meta.relPath}</dd>
+              <dt>Created</dt>
+              <dd>{meta.created ?? fmtDate(meta.ctimeMs)}</dd>
+              <dt>Modified</dt>
+              <dd>{meta.updated ?? fmtDate(meta.mtimeMs)}</dd>
+              <dt>Words</dt>
+              <dd>{meta.wordCount}</dd>
+            </dl>
+            {meta.tags.length > 0 && (
               <div className="meta-tags">
-                {meta.tags.length ? (
-                  meta.tags.map((t) => (
-                    <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
-                      #{t}
-                    </Link>
-                  ))
-                ) : (
-                  <span className="muted">No tags</span>
-                )}
+                {meta.tags.map((t) => (
+                  <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
+                    #{t}
+                  </Link>
+                ))}
               </div>
-            </details>
+            )}
           </section>
 
           {mode !== 'read' && (
