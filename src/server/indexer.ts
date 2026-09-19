@@ -28,7 +28,9 @@ export function normalizeTarget(target: string): string {
 }
 
 export function linksFromContent(content: string): LinkRef[] {
-  return parseWikiLinks(content).map((s) => ({
+  // Embeds (`![[image.jpg]]`, `![[Note]]`) are transclusions, not links —
+  // exclude them so they aren't counted as outgoing/unresolved wiki links.
+  return parseWikiLinks(content, { includeEmbeds: false }).map((s) => ({
     target: s.target,
     alias: s.alias,
     heading: s.heading,

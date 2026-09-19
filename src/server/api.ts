@@ -8,7 +8,7 @@ import type { AppConfig } from '../shared/config.js';
 import { searchIndex, type SearchFilters } from './search.js';
 import { buildFullGraph, buildSubgraph, type GraphFilters } from './graph.js';
 import { computeHealth } from './health.js';
-import { UnsafePathError } from '../shared/path-utils.js';
+import { UnsafePathError, toRelPath } from '../shared/path-utils.js';
 import { setFrontmatterField, parseFrontmatter, removeFrontmatterField, toStringArray, coerceRating } from '../shared/frontmatter.js';
 import { sha256 } from './obsidian-filesystem-provider.js';
 import { buildKnowledgeMap } from './knowledge-map.js';
@@ -308,6 +308,22 @@ export function createApi(service: VaultService, config: AppConfig): Router {
       const buf = await service.provider.readRaw(rel);
       if (!buf) return res.status(404).json({ error: 'not found' });
       res.setHeader('Content-Type', contentTypeFor(rel));
+      res.send(buf);
+    } catch {
+      res.status(404).json({ error: 'not found' });
+    }
+  });
+
+  // ----- Attachment serving by Obsidian-resolved name (for `![[image]]` embeds) -----
+  r.get('/attachment/*', async (req, res) => {
+    const name = relOf(req);
+    try {
+      const abs = await service.provider.resolveAttachment(name);
+      if (!abs) return res.status(404).json({ error: 'not found' });
+      const rel = toRelPath(service.provider.root, abs);
+      const buf = await service.provider.readRaw(rel);
+      if (!buf) return res.status(404).json({ error: 'not found' });
+      res.setHeader('Content-Type', contentTypeFor(name));
       res.send(buf);
     } catch {
       res.status(404).json({ error: 'not found' });

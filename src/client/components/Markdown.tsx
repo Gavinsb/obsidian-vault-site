@@ -88,8 +88,9 @@ function renderMarkdown(content: string): string {
     return `<aside class="callout callout-${(type ?? 'note').toLowerCase()}"><div class="callout-title">${escapeHtml(t)}</div>`;
   });
 
-  // 3) Wiki links → anchors (store the RAW target, not pre-encoded).
-  content = content.replace(/!?\[\[([^\[\]\n]+?)\]\]/g, (_m, inner) => {
+  // 3) Wiki links → anchors (store the RAW target, not pre-encoded);
+  //    embeds (![[image.png]]) → <img> resolved against the attachment endpoint.
+  content = content.replace(/(!?)\[\[([^\[\]\n]+?)\]\]/g, (_m, bang, inner) => {
     let target = inner;
     let alias: string | undefined;
     const pipe = inner.indexOf('|');
@@ -99,8 +100,17 @@ function renderMarkdown(content: string): string {
     }
     const hash = target.indexOf('#');
     if (hash !== -1) target = target.slice(0, hash);
-    const label = escapeHtml(alias ?? target);
-    return `<a href="#/" data-wikilink="${escapeHtml(target.trim())}" class="wikilink">${label}</a>`;
+    const clean = target.trim();
+
+    // Embed of an image/attachment → render an <img>, not a link.
+    if (bang === '!' && /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(clean)) {
+      const src = `/api/attachment/${encodeURIComponent(clean)}`;
+      const alt = escapeHtml(alias ?? clean);
+      return `<img src="${src}" alt="${alt}" class="embed-image" loading="lazy" />`;
+    }
+
+    const label = escapeHtml(alias ?? clean);
+    return `<a href="#/" data-wikilink="${escapeHtml(clean)}" class="wikilink">${label}</a>`;
   });
 
   // 4) Restore code blocks.

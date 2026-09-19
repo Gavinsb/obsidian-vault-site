@@ -170,6 +170,7 @@ a:hover { text-decoration: underline; }
 .markdown-body code { background: var(--bg-alt); padding: 2px 5px; border-radius: 4px; font-size: 13px; }
 .markdown-body pre code { background: none; padding: 0; }
 .markdown-body blockquote { border-left: 3px solid var(--accent); margin: 10px 0; padding-left: 12px; color: var(--text-dim); }
+.markdown-body .embed-image { max-width: 100%; height: auto; display: block; margin: 12px 0; border-radius: 6px; border: 1px solid var(--border); }
 .callout { border-left: 3px solid var(--accent); border-radius: 4px; background: var(--bg-alt); padding: 8px 12px; margin: 10px 0; }
 .callout-title { font-weight: 700; text-transform: capitalize; margin-bottom: 4px; }
 .callout-warn, .callout-warning, .callout-danger { border-left-color: var(--warn); }
