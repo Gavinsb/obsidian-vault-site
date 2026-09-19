@@ -21,6 +21,7 @@ export function DocView() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [conflict, setConflict] = useState<any>(null);
   const [flash, setFlash] = useState<{ kind: string; msg: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const timer = useRef<number | null>(null);
 
   // The URL may contain a title/alias; the canonical path is the resolved note.
@@ -72,15 +73,24 @@ export function DocView() {
   }, [canonicalPath, mode]);
 
   if (loading && !doc) {
-    return <div className="view loading">Loading document…</div>;
+    return (
+      <div className="view">
+        <div className="skeleton skeleton-title" />
+        <div className="skeleton skeleton-line w80" />
+        <div className="skeleton skeleton-line" />
+        <div className="skeleton skeleton-line w60" />
+        <div className="skeleton skeleton-line w40" />
+      </div>
+    );
   }
   if (error && !doc) {
     return (
       <div className="view">
-        <div className="card error-card">
+        <div className="card error-card not-found">
           <h2>Document not found</h2>
-          <p>{error}</p>
-          <button onClick={() => navigate('/')}>Back to home</button>
+          <p>The page you're looking for doesn't exist or may have been moved.</p>
+          <p className="muted">{error}</p>
+          <button className="primary" onClick={() => navigate('/')}>← Back to home</button>
         </div>
       </div>
     );
@@ -143,7 +153,6 @@ export function DocView() {
   };
 
   const onDelete = async () => {
-    if (!window.confirm(`Delete ${meta.relPath}? This removes the source file.`)) return;
     try {
       await api.deleteDoc(canonicalPath);
       navigate('/');
@@ -202,9 +211,14 @@ export function DocView() {
             </button>
           </div>
           <button onClick={onToggleFavorite}>{meta.favorite ? '★ Favorited' : '☆ Favorite'}</button>
-          <button onClick={onDelete} className="danger">
-            Delete
-          </button>
+          {confirmDelete ? (
+            <>
+              <button className="danger" onClick={onDelete}>Confirm delete</button>
+              <button onClick={() => setConfirmDelete(false)}>Cancel</button>
+            </>
+          ) : (
+            <button className="danger" onClick={() => setConfirmDelete(true)}>Delete</button>
+          )}
         </div>
       </div>
 
@@ -263,7 +277,7 @@ export function DocView() {
                   </div>
                 )}
               </details>
-              <Markdown content={rest} />
+              <Markdown content={rest} baseFolder={meta.folder} />
             </article>
           )}
           {mode === 'split' && (
@@ -274,7 +288,7 @@ export function DocView() {
                 onChange={(e) => debounceAutoSave(e.target.value)}
               />
               <div className="preview-pane">
-                <Markdown content={draft} />
+                <Markdown content={draft} baseFolder={meta.folder} />
               </div>
             </>
           )}

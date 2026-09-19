@@ -15,6 +15,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
   const [homeDoc, setHomeDoc] = useState<VaultDocSummary | null>(null);
   const [newNote, setNewNote] = useState(false);
   const [notePath, setNotePath] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -57,7 +58,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
       await api.createDoc(p, content);
       navigate(`/note/${encodeURIComponent(p)}`);
     } catch (e) {
-      alert(`Could not create: ${e}`);
+      setCreateError(`Could not create: ${e instanceof Error ? e.message : e}`);
     }
   };
 
@@ -97,9 +98,10 @@ export function Dashboard({ siteName }: { siteName: string }) {
           <button className="primary" onClick={createNote}>
             Create
           </button>
-          <button onClick={() => setNewNote(false)}>Cancel</button>
+          <button onClick={() => { setNewNote(false); setCreateError(null); }}>Cancel</button>
         </div>
       )}
+      {createError && <div className="flash flash-err">{createError}</div>}
 
       <div className="stat-grid">
         <Stat label="Total notes" value={stats?.noteCount ?? '—'} />

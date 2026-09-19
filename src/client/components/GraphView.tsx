@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Plus, Minus, RotateCcw } from 'lucide-react';
 import { api, type GraphData } from '../api';
 
 const W = 900;
@@ -259,18 +260,18 @@ export function GraphView() {
     <div className="view graph-view">
       <div className="view-header">
         <h1>Knowledge graph</h1>
+      </div>
+
+      <div className="graph-toolbar">
         <div className="graph-controls">
           <button onClick={() => setSeed(null)} disabled={!seed}>Full vault</button>
           {seed && <button onClick={() => setDepth((d) => d + 1)}>Expand +1 hop</button>}
           <span className="muted">{seed ? `Depth ${depth}` : 'All notes'}</span>
         </div>
-      </div>
-
-      <div className="graph-toolbar">
         <div className="graph-zoom-controls">
-          <button onClick={() => zoomBy(1.2)} aria-label="Zoom in">＋</button>
-          <button onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out">－</button>
-          <button onClick={resetView} aria-label="Reset view">Reset</button>
+          <button onClick={() => zoomBy(1.2)} aria-label="Zoom in"><Plus size={15} strokeWidth={1.75} /></button>
+          <button onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out"><Minus size={15} strokeWidth={1.75} /></button>
+          <button onClick={resetView} aria-label="Reset view"><RotateCcw size={14} strokeWidth={1.75} /> Reset</button>
         </div>
         <div className="graph-search">
           <input
@@ -297,6 +298,7 @@ export function GraphView() {
         <svg
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="xMidYMid meet"
           className="graph-svg"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

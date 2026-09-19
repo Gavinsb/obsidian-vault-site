@@ -13,6 +13,18 @@ function isExternalHref(href: string): boolean {
   return /^(https?:|mailto:|tel:|data:|javascript:|\/\/|#)/i.test(href);
 }
 
+/** Resolve a note-relative image path against the note's folder (vault-relative). */
+function resolveRelPath(baseFolder: string, src: string): string {
+  const decoded = decodeURIComponent(src);
+  const parts = baseFolder ? baseFolder.split('/').filter(Boolean) : [];
+  for (const seg of decoded.split('/')) {
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') parts.pop();
+    else parts.push(seg);
+  }
+  return parts.join('/');
+}
+
 const FM_RE = /^(?:\uFEFF)?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 
 /** Remove a leading YAML frontmatter block (never render it as article text). */
@@ -35,9 +47,9 @@ export function splitTitle(body: string): { title: string; rest: string } {
  * Unsupported Obsidian syntax is left untouched (source integrity) and simply
  * shown as text.
  */
-export function Markdown({ content }: { content: string }) {
+export function Markdown({ content, baseFolder }: { content: string; baseFolder?: string }) {
   const navigate = useNavigate();
-  const html = useMemo(() => renderMarkdown(content), [content]);
+  const html = useMemo(() => renderMarkdown(content, baseFolder), [content, baseFolder]);
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const a = (e.target as HTMLElement).closest('a') as HTMLAnchorElement | null;
@@ -71,7 +83,7 @@ export function Markdown({ content }: { content: string }) {
 }
 
 // Renders wiki links as anchors with a data attribute the click handler reads.
-function renderMarkdown(content: string): string {
+function renderMarkdown(content: string, baseFolder = ''): string {
   // 0) Strip frontmatter so YAML never leaks into the rendered article.
   content = stripFrontmatter(content);
 
@@ -111,6 +123,16 @@ function renderMarkdown(content: string): string {
 
     const label = escapeHtml(alias ?? clean);
     return `<a href="#/" data-wikilink="${escapeHtml(clean)}" class="wikilink">${label}</a>`;
+  });
+
+  // 3b) Standard markdown images ![alt](path) → resolve relative to the note
+  //     folder and serve through /api/raw (matches how the Abilene note links
+  //     its infographic, unlike the `![[...]]` embed handled above).
+  content = content.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt, src) => {
+    if (isExternalHref(src)) return _m; // leave http/data/anchor images alone
+    const resolved = resolveRelPath(baseFolder, src);
+    const enc = resolved.split('/').map(encodeURIComponent).join('/');
+    return `<img src="/api/raw/${enc}" alt="${escapeHtml(alt)}" class="embed-image" loading="lazy" />`;
   });
 
   // 4) Restore code blocks.

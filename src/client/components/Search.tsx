@@ -12,9 +12,15 @@ export function Search() {
   const [searched, setSearched] = useState(false);
 
   useEffect(() => {
-    if (params.get('tag')) {
-      setTagFilter(params.get('tag')!);
-      run(params.get('tag')!, { tag: params.get('tag')! });
+    const tag = params.get('tag');
+    const qParam = params.get('q');
+    if (qParam) {
+      // Header search bar deep-link (?q=) — run it on arrival.
+      setQ(qParam);
+      run(qParam, { tag: tag || undefined });
+    } else if (tag) {
+      setTagFilter(tag);
+      run(tag, { tag });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -64,7 +70,19 @@ export function Search() {
         </button>
       </form>
 
-      {!searched && <p className="muted">Type a query to search the whole vault.</p>}
+      {!searched && (
+        <div className="search-empty">
+          <p className="muted">Type a query to search titles, content, tags, and aliases.</p>
+          <div className="suggest-row">
+            <span className="muted">Try:</span>
+            {['knowledge', 'agent skills', 'bias'].map((s) => (
+              <button key={s} className="suggest-chip" onClick={() => { setQ(s); run(s); }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {searched && results.length === 0 && <p className="muted">No results.</p>}
       <ul className="search-results">
         {results.map((r) => (
