@@ -23,12 +23,25 @@ const ICONS: Record<string, string> = {
   settings: '⚙',
 };
 
-export function Sidebar({ items, vaultName }: { items: NavItem[]; vaultName: string }) {
+export function Sidebar({
+  items,
+  siteName,
+  open,
+  onClose,
+}: {
+  items: NavItem[];
+  siteName: string;
+  open: boolean;
+  onClose: () => void;
+}) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? ' open' : ''}`}>
       <div className="sidebar-vault">
         <div className="vault-dot" />
-        <span className="vault-name">{vaultName}</span>
+        <span className="vault-name">{siteName}</span>
+        <button className="sidebar-close" aria-label="Close menu" onClick={onClose}>
+          ✕
+        </button>
       </div>
       <nav className="sidebar-nav">
         {items.map((item) => (
@@ -37,6 +50,7 @@ export function Sidebar({ items, vaultName }: { items: NavItem[]; vaultName: str
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            onClick={onClose}
           >
             <span className="nav-icon">{ICONS[item.icon] ?? '•'}</span>
             <span>{item.label}</span>
@@ -48,6 +62,7 @@ export function Sidebar({ items, vaultName }: { items: NavItem[]; vaultName: str
           className="nav-item"
           onClick={() => {
             window.dispatchEvent(new CustomEvent('kv:new-note'));
+            onClose();
           }}
         >
           <span className="nav-icon">＋</span>

@@ -14,24 +14,27 @@ import { RecentView } from './components/RecentView';
 import { FavoritesView } from './components/FavoritesView';
 import { CommandPalette } from './components/CommandPalette';
 import { SyncBar } from './components/SyncBar';
-import { ThemeContext } from './theme';
+import { ThemeContext, useEffectiveTheme } from './theme';
 import { KnowledgeMapView } from './components/KnowledgeMapView';
 
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [overview, setOverview] = useState<VaultOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('system');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const siteName = config?.siteName ?? 'Doug KX';
+  const effectiveTheme = useEffectiveTheme(theme);
 
   useEffect(() => {
     (async () => {
       try {
         const cfg = await api.config();
         setConfig(cfg);
-        setTheme((cfg.theme as 'dark' | 'light' | 'system') || 'dark');
+        setTheme((cfg.theme as 'dark' | 'light' | 'system') || 'system');
       } catch (e) {
         setError(String(e));
       }
@@ -58,13 +61,16 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme === 'system' ? 'dark' : theme;
-  }, [theme]);
+    document.documentElement.dataset.theme = effectiveTheme;
+    document.documentElement.style.colorScheme = effectiveTheme;
+  }, [effectiveTheme]);
 
-  const themeValue = useMemo(
-    () => ({ theme, setTheme }),
-    [theme]
-  );
+  // Close the mobile sidebar on navigation.
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  const themeValue = useMemo(() => ({ theme, setTheme }), [theme]);
 
   // Global command palette shortcut.
   useEffect(() => {
@@ -114,12 +120,24 @@ export function App() {
   return (
     <ThemeContext.Provider value={themeValue}>
       <div className="app-shell">
-        <Sidebar items={navItems} vaultName={config?.vaultName ?? 'Vault'} />
+        <Sidebar
+          items={navItems}
+          siteName={siteName}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+        {sidebarOpen && <div className="sidebar-scrim" onClick={() => setSidebarOpen(false)} />}
         <main className="app-main">
+          <div className="mobile-topbar">
+            <button className="menu-btn" aria-label="Menu" onClick={() => setSidebarOpen(true)}>
+              ☰
+            </button>
+            <span className="mobile-title">{siteName}</span>
+          </div>
           <SyncBar overview={overview} />
           <div className="app-content">
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<Dashboard siteName={siteName} />} />
               <Route path="/search" element={<Search />} />
               <Route path="/recent" element={<RecentView />} />
               <Route path="/changed" element={<ChangedView />} />

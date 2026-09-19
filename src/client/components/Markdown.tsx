@@ -5,6 +5,14 @@ import { useNavigate } from 'react-router-dom';
 
 marked.setOptions({ gfm: true, breaks: true });
 
+/** Encode a vault-relative path while keeping `/` separators literal. */
+const encPath = (p: string) =>
+  p.split('/').map((seg) => encodeURIComponent(seg)).join('/');
+
+function isExternalHref(href: string): boolean {
+  return /^(https?:|mailto:|tel:|data:|javascript:|\/\/|#)/i.test(href);
+}
+
 /**
  * Renders Markdown + Obsidian wiki-links/callouts/images into safe HTML.
  * Unsupported Obsidian syntax is left untouched (source integrity) and simply
@@ -15,12 +23,25 @@ export function Markdown({ content }: { content: string }) {
   const html = useMemo(() => renderMarkdown(content), [content]);
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = (e.target as HTMLElement).closest('a[data-wikilink]') as HTMLAnchorElement | null;
-    if (target) {
+    const a = (e.target as HTMLElement).closest('a') as HTMLAnchorElement | null;
+    if (!a) return;
+
+    // 1) Wiki links carry the raw target (resolved server-side by title/alias).
+    const wikilink = a.getAttribute('data-wikilink');
+    if (wikilink) {
       e.preventDefault();
-      const path = target.getAttribute('data-wikilink');
-      if (path) navigate(`/note/${encodeURIComponent(path)}`);
+      navigate(`/note/${encPath(wikilink)}`);
+      return;
     }
+
+    // 2) Internal markdown links (relative .md targets) navigate too.
+    const href = a.getAttribute('href') || '';
+    if (href && !isExternalHref(href)) {
+      e.preventDefault();
+      const target = href.replace(/^\.\//, '');
+      navigate(`/note/${encPath(decodeURIComponent(target))}`);
+    }
+    // External links and anchors fall through to the browser.
   };
 
   return (
@@ -47,7 +68,7 @@ function renderMarkdown(content: string): string {
     return `<aside class="callout callout-${(type ?? 'note').toLowerCase()}"><div class="callout-title">${escapeHtml(t)}</div>`;
   });
 
-  // 3) Wiki links → anchors.
+  // 3) Wiki links → anchors (store the RAW target, not pre-encoded).
   content = content.replace(/!?\[\[([^][\n]+?)\]\]/g, (_m, inner) => {
     let target = inner;
     let alias: string | undefined;
@@ -59,8 +80,7 @@ function renderMarkdown(content: string): string {
     const hash = target.indexOf('#');
     if (hash !== -1) target = target.slice(0, hash);
     const label = escapeHtml(alias ?? target);
-    const path = encodeURIComponent(target.trim());
-    return `<a href="#/" data-wikilink="${path}" class="wikilink">${label}</a>`;
+    return `<a href="#/" data-wikilink="${escapeHtml(target.trim())}" class="wikilink">${label}</a>`;
   });
 
   // 4) Restore code blocks.
@@ -79,5 +99,5 @@ function renderMarkdown(content: string): string {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

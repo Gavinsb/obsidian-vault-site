@@ -7,15 +7,11 @@ import { RatingStars } from './RatingStars';
 import { Breadcrumbs } from './Breadcrumbs';
 
 type Mode = 'read' | 'edit' | 'split';
-type ThemeMode = 'dark' | 'light' | 'system'; // local alias to avoid extra import
-import { useTheme } from '../theme';
 
 export function DocView() {
   const { path: pathParam } = useParams();
-  const path = pathParam ? decodeURIComponent(pathParam) : '';
+  const lookup = pathParam ? decodeURIComponent(pathParam) : '';
   const navigate = useNavigate();
-  const { setTheme } = useTheme();
-  void setTheme; // theme used elsewhere; keep typing
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +21,10 @@ export function DocView() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [conflict, setConflict] = useState<any>(null);
   const [flash, setFlash] = useState<{ kind: string; msg: string } | null>(null);
-  const [showGraph, setShowGraph] = useState(true);
-  const [subgraph, setSubgraph] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const timer = useRef<number | null>(null);
+
+  // The URL may contain a title/alias; the canonical path is the resolved note.
+  const canonicalPath = doc?.meta.relPath ?? lookup;
 
   const load = async (p: string, showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -38,12 +35,6 @@ export function DocView() {
       setDraft(d.content);
       setBaseHash(computeHash(d.content));
       setConflict(null);
-      // Load local subgraph.
-      try {
-        setSubgraph(await api.subgraph(p, 1));
-      } catch {
-        setSubgraph({ nodes: [], edges: [] });
-      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -52,19 +43,19 @@ export function DocView() {
   };
 
   useEffect(() => {
-    if (path) {
+    if (lookup) {
       setMode('read');
-      load(path);
+      load(lookup);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path]);
+  }, [lookup]);
 
-  // Poll external changes for the current doc (debounced via server).
+  // Poll external changes for the current doc.
   useEffect(() => {
-    if (!path) return;
+    if (!canonicalPath) return;
     const t = setInterval(async () => {
       try {
-        const fresh = await api.getDoc(path);
+        const fresh = await api.getDoc(canonicalPath);
         setDoc((prev) => {
           if (prev && fresh && fresh.content !== prev.content && mode === 'read') {
             setBaseHash(computeHash(fresh.content));
@@ -78,7 +69,7 @@ export function DocView() {
     }, 4000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, mode]);
+  }, [canonicalPath, mode]);
 
   const computeHash = (c: string) => {
     // Simple FNV-1a; server does real sha256, this is just an edit baseline.
@@ -109,8 +100,8 @@ export function DocView() {
   const meta = doc.meta;
   const onRating = async (v: number) => {
     try {
-      await api.rate(path, v);
-      const d = await api.getDoc(path);
+      await api.rate(canonicalPath, v);
+      const d = await api.getDoc(canonicalPath);
       setDoc(d);
       setBaseHash(computeHash(d.content));
       setFlash({ kind: 'ok', msg: `Rated ${v}★ — written to frontmatter` });
@@ -121,8 +112,8 @@ export function DocView() {
 
   const onToggleFavorite = async () => {
     try {
-      await api.setMeta(path, { favorite: meta.favorite ? false : true });
-      const d = await api.getDoc(path);
+      await api.setMeta(canonicalPath, { favorite: meta.favorite ? false : true });
+      const d = await api.getDoc(canonicalPath);
       setDoc(d);
     } catch (e) {
       setFlash({ kind: 'err', msg: String(e) });
@@ -131,7 +122,6 @@ export function DocView() {
 
   const onSave = async () => {
     if (conflict?.dismissEditor) {
-      // User chose to overwrite: expectedHash null.
       await doSave(null);
       return;
     }
@@ -141,10 +131,9 @@ export function DocView() {
   const doSave = async (expectedHash: string | null) => {
     setFlash(null);
     try {
-      const res = await api.saveDoc(path, draft, expectedHash ?? '');
-      // Conflict detection: if server returned 409 we catch it.
+      await api.saveDoc(canonicalPath, draft, expectedHash ?? '');
       setSavedAt(new Date());
-      const d = await api.getDoc(path);
+      const d = await api.getDoc(canonicalPath);
       setDoc(d);
       setBaseHash(computeHash(d.content));
       setConflict(null);
@@ -165,7 +154,7 @@ export function DocView() {
   const onDelete = async () => {
     if (!window.confirm(`Delete ${meta.relPath}? This removes the source file.`)) return;
     try {
-      await api.deleteDoc(path);
+      await api.deleteDoc(canonicalPath);
       navigate('/');
     } catch (e) {
       setFlash({ kind: 'err', msg: String(e) });
@@ -174,7 +163,7 @@ export function DocView() {
 
   const conflictActions = {
     reloadExternal: async () => {
-      const d = await api.getDoc(path);
+      const d = await api.getDoc(canonicalPath);
       setDoc(d);
       setDraft(d.content);
       setBaseHash(computeHash(d.content));
@@ -191,7 +180,6 @@ export function DocView() {
     setDraft(c);
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      // Autosave only if not in conflict.
       if (!conflict) onSave();
     }, 1200);
   };
@@ -201,7 +189,7 @@ export function DocView() {
       <div className="doc-toolbar">
         <div className="toolbar-left">
           <button onClick={() => navigate(-1)}>← Back</button>
-          <Breadcrumbs folder={meta.folder} />
+          <Breadcrumbs folder={meta.folder} current={meta.title} />
         </div>
         <div className="toolbar-right">
           <div className="mode-toggle">
@@ -219,11 +207,16 @@ export function DocView() {
             </button>
           </div>
           <button onClick={onToggleFavorite}>{meta.favorite ? '★ Favorited' : '☆ Favorite'}</button>
-          <button onClick={() => setShowGraph((v) => !v)}>Relationships</button>
           <button onClick={onDelete} className="danger">
             Delete
           </button>
         </div>
+      </div>
+
+      <div className="doc-rating-bar">
+        <span className="rating-label">Rate this page</span>
+        <RatingStars value={meta.rating} scale={5} onChange={onRating} size={22} />
+        <span className="muted rating-hint">tap a star to rate 1–5 · saved to frontmatter</span>
       </div>
 
       {(mode === 'edit' || mode === 'split') && (
@@ -273,31 +266,53 @@ export function DocView() {
 
         <aside className="doc-context">
           <section className="context-block">
-            <h4>Metadata</h4>
-            <RatingStars value={meta.rating} scale={5} onChange={onRating} />
-            <dl className="meta-list">
-              <dt>Status</dt>
-              <dd>{meta.status ?? '—'}</dd>
-              <dt>Path</dt>
-              <dd className="mono">{meta.relPath}</dd>
-              <dt>Created</dt>
-              <dd>{meta.created ?? fmtDate(meta.ctimeMs)}</dd>
-              <dt>Modified</dt>
-              <dd>{meta.updated ?? fmtDate(meta.mtimeMs)}</dd>
-              <dt>Words</dt>
-              <dd>{meta.wordCount}</dd>
-              <dt>Tags</dt>
-              <dd>
-                <div className="tag-list">
-                  {meta.tags.map((t) => (
+            <h4>File info</h4>
+            <details className="collapsible">
+              <summary>Show metadata</summary>
+              <dl className="meta-list">
+                <dt>Type</dt>
+                <dd>{String(meta.frontmatter?.type ?? '—')}</dd>
+                <dt>Status</dt>
+                <dd>{meta.status ?? '—'}</dd>
+                <dt>Aliases</dt>
+                <dd>{meta.aliases?.length ? meta.aliases.join(', ') : '—'}</dd>
+                <dt>Path</dt>
+                <dd className="mono">{meta.relPath}</dd>
+                <dt>Created</dt>
+                <dd>{meta.created ?? fmtDate(meta.ctimeMs)}</dd>
+                <dt>Modified</dt>
+                <dd>{meta.updated ?? fmtDate(meta.mtimeMs)}</dd>
+                <dt>Words</dt>
+                <dd>{meta.wordCount}</dd>
+              </dl>
+              <div className="meta-tags">
+                {meta.tags.length ? (
+                  meta.tags.map((t) => (
                     <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
                       #{t}
                     </Link>
-                  ))}
-                </div>
-              </dd>
-            </dl>
+                  ))
+                ) : (
+                  <span className="muted">No tags</span>
+                )}
+              </div>
+            </details>
           </section>
+
+          {mode !== 'read' && (
+            <section className="context-block markdown-legend">
+              <h4>Markdown shortcuts</h4>
+              <ul className="legend-list">
+                <li><code>**bold**</code> · <code>*italic*</code></li>
+                <li><code>## heading</code></li>
+                <li><code>[[Page Name]]</code> link</li>
+                <li><code>#tag</code> inline tag</li>
+                <li><code>- [ ] task</code></li>
+                <li><code>&gt; [!note] Title</code> callout</li>
+                <li><code>`code`</code> inline code</li>
+              </ul>
+            </section>
+          )}
 
           <section className="context-block">
             <h4>Backlinks ({doc.backlinks.length})</h4>

@@ -1,37 +1,69 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type GraphData } from '../api';
-import { useTheme } from '../theme';
+
+const W = 900;
+const H = 600;
+
+type Node = GraphData['nodes'][number];
+
+/** Node radius scales with connectivity. */
+function radius(linkCount: number): number {
+  return Math.max(4, Math.min(6 + Math.sqrt(Math.max(0, linkCount)) * 3, 20));
+}
+
+/** Rated notes render green, unrated render blue. */
+function nodeColor(n: Node): string {
+  return n.rating !== undefined ? '#37c877' : '#4f8cff';
+}
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.min(hi, Math.max(lo, v));
+}
 
 /**
- * Force-directed knowledge graph (SVG). Nodes = notes, edges = resolved links.
- * Supports pan/zoom (drag on background), node drag, hover preview, and
- * hop-depth neighbourhood expansion.
+ * Knowledge graph. SVG + a transform group for zoom/pan. No CSS `filter` on
+ * SVG elements (Safari-safe); wheel/pinch zoom via passive:false listeners.
  */
 export function GraphView() {
   const [data, setData] = useState<GraphData>({ nodes: [], edges: [] });
-  const [depth, setDepth] = useState(1);
   const [seed, setSeed] = useState<string | null>(null);
-  const [hover, setHover] = useState<GraphData['nodes'][number] | null>(null);
-  const [dark, setDark] = useState(false);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const [depth, setDepth] = useState(1);
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [zoom, setZoomState] = useState(1);
+  const [pan, setPanState] = useState({ x: 0, y: 0 });
+  const [search, setSearch] = useState('');
+  const [focusOpen, setFocusOpen] = useState(false);
   const navigate = useNavigate();
-  const { theme } = useTheme();
 
-  // Precompute positions with a lightweight force layout.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const dragRef = useRef<{ sx: number; sy: number; px: number; py: number; moved: boolean } | null>(null);
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+
+  const setZoom = (z: number) => {
+    zoomRef.current = z;
+    setZoomState(z);
+  };
+  const setPan = (p: { x: number; y: number }) => {
+    panRef.current = p;
+    setPanState(p);
+  };
+
+  // Force layout.
   const layout = useMemo(() => {
     const { nodes, edges } = data;
-    const w = 900;
-    const h = 600;
-    let positions = new Map<string, { x: number; y: number }>();
+    const positions = new Map<string, { x: number; y: number }>();
     nodes.forEach((n, i) => {
       const angle = (i / Math.max(1, nodes.length)) * Math.PI * 2;
       positions.set(n.id, {
-        x: w / 2 + Math.cos(angle) * 180,
-        y: h / 2 + Math.sin(angle) * 180,
+        x: W / 2 + Math.cos(angle) * 180,
+        y: H / 2 + Math.sin(angle) * 180,
       });
     });
-    // Simple iterative relaxation (a few passes).
     const adj = new Map<string, Set<string>>();
     for (const e of edges) {
       if (!adj.has(e.source)) adj.set(e.source, new Set());
@@ -39,21 +71,19 @@ export function GraphView() {
       adj.get(e.source)!.add(e.target);
       adj.get(e.target)!.add(e.source);
     }
-    for (let it = 0; it < 80; it++) {
+    for (let it = 0; it < 90; it++) {
       for (const n of nodes) {
         const p = positions.get(n.id)!;
-        // Repulsion.
         for (const m of nodes) {
           if (m.id === n.id) continue;
           const q = positions.get(m.id)!;
           const dx = p.x - q.x;
           const dy = p.y - q.y;
           const d2 = Math.max(1, dx * dx + dy * dy);
-          const f = 2400 / d2;
+          const f = 2600 / d2;
           p.x += (dx / Math.sqrt(d2)) * f;
           p.y += (dy / Math.sqrt(d2)) * f;
         }
-        // Spring attraction to neighbours.
         const neigh = adj.get(n.id);
         if (neigh) for (const other of neigh) {
           const q = positions.get(other);
@@ -61,48 +91,174 @@ export function GraphView() {
           const dx = q.x - p.x;
           const dy = q.y - p.y;
           const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-          const f = (d - 90) * 0.004;
+          const f = (d - 95) * 0.004;
           p.x += dx * f;
           p.y += dy * f;
         }
-        // Center pull.
-        p.x += (w / 2 - p.x) * 0.005;
-        p.y += (h / 2 - p.y) * 0.005;
+        p.x += (W / 2 - p.x) * 0.005;
+        p.y += (H / 2 - p.y) * 0.005;
       }
     }
     return positions;
   }, [data]);
 
-  useEffect(() => setDark(theme === 'dark' || theme === 'system'), [theme]);
+  const neighbours = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const e of data.edges) {
+      if (!map.has(e.source)) map.set(e.source, new Set());
+      if (!map.has(e.target)) map.set(e.target, new Set());
+      map.get(e.source)!.add(e.target);
+      map.get(e.target)!.add(e.source);
+    }
+    return map;
+  }, [data]);
 
   const loadGraph = async (s: string | null, d: number) => {
-    if (s) {
-      setData(await api.subgraph(s, d));
-    } else {
-      setData(await api.graph());
-    }
+    if (s) setData(await api.subgraph(s, d));
+    else setData(await api.graph());
   };
   useEffect(() => {
     loadGraph(seed, depth);
+    setSelectedId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed, depth]);
 
-  const expand = async () => {
-    const nd = depth + 1;
-    setDepth(nd);
+  // Wheel zoom (manual listener, passive:false for Safari/Chrome).
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const nz = clamp(zoomRef.current * factor, 0.25, 6);
+      const ratio = nz / zoomRef.current;
+      const p = panRef.current;
+      setPan({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio });
+      setZoom(nz);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const activeId = selectedId ?? hoverId;
+  const activeNeighbours = activeId ? neighbours.get(activeId) ?? new Set() : new Set();
+
+  // Pointer handlers (pan + pinch).
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.target instanceof Element && e.target.closest('.node-g')) return;
+    (e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 1) {
+      dragRef.current = { sx: e.clientX, sy: e.clientY, px: panRef.current.x, py: panRef.current.y, moved: false };
+    } else if (pointersRef.current.size === 2) {
+      const [a, b] = [...pointersRef.current.values()];
+      pinchRef.current = { dist: Math.hypot(a.x - b.x, a.y - b.y), zoom: zoomRef.current };
+      dragRef.current = null;
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointersRef.current.size === 2 && pinchRef.current) {
+      const [a, b] = [...pointersRef.current.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const nz = clamp(pinchRef.current.zoom * (dist / Math.max(1, pinchRef.current.dist)), 0.25, 6);
+      const rect = svgRef.current!.getBoundingClientRect();
+      const mx = ((a.x + b.x) / 2) - rect.left;
+      const my = ((a.y + b.y) / 2) - rect.top;
+      const ratio = nz / zoomRef.current;
+      const p = panRef.current;
+      setPan({ x: mx - (mx - p.x) * ratio, y: my - (my - p.y) * ratio });
+      setZoom(nz);
+      pinchRef.current = { dist, zoom: nz };
+      return;
+    }
+
+    if (dragRef.current) {
+      const dx = e.clientX - dragRef.current.sx;
+      const dy = e.clientY - dragRef.current.sy;
+      if (Math.abs(dx) + Math.abs(dy) > 3) dragRef.current.moved = true;
+      setPan({ x: dragRef.current.px + dx, y: dragRef.current.py + dy });
+    }
+  };
+  const endPointer = (e: React.PointerEvent<SVGSVGElement>) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size === 0) dragRef.current = null;
   };
 
+  const onNodeClick = (n: Node) => {
+    if (dragRef.current?.moved) return; // it was a pan, not a tap
+    navigate(`/note/${encodeURIComponent(n.id)}`);
+  };
+
+  const zoomBy = (f: number) => {
+    const nz = clamp(zoomRef.current * f, 0.25, 6);
+    const ratio = nz / zoomRef.current;
+    const p = panRef.current;
+    const cx = W / 2;
+    const cy = H / 2;
+    setPan({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio });
+    setZoom(nz);
+  };
+
+  const resetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const focusNode = (id: string) => {
+    const p = layout.get(id);
+    if (p) {
+      setPan({ x: W / 2 - p.x * zoomRef.current, y: H / 2 - p.y * zoomRef.current });
+    }
+    setSelectedId(id);
+    setFocusOpen(false);
+    setSearch('');
+  };
+
+  const searchMatches = data.nodes
+    .filter((n) => n.title.toLowerCase().includes(search.toLowerCase()))
+    .slice(0, 12);
+
   return (
-    <div className="view">
+    <div className="view graph-view">
       <div className="view-header">
         <h1>Knowledge graph</h1>
         <div className="graph-controls">
-          <button onClick={() => setSeed(null)} disabled={!seed}>
-            Full vault
-          </button>
-          <span className="muted">Neighbourhood depth: {seed ? depth : '—'}</span>
-          {seed && (
-            <button onClick={expand}>Expand +1 hop</button>
+          <button onClick={() => setSeed(null)} disabled={!seed}>Full vault</button>
+          {seed && <button onClick={() => setDepth((d) => d + 1)}>Expand +1 hop</button>}
+          <span className="muted">{seed ? `Depth ${depth}` : 'All notes'}</span>
+        </div>
+      </div>
+
+      <div className="graph-toolbar">
+        <div className="graph-zoom-controls">
+          <button onClick={() => zoomBy(1.2)} aria-label="Zoom in">＋</button>
+          <button onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out">－</button>
+          <button onClick={resetView} aria-label="Reset view">Reset</button>
+        </div>
+        <div className="graph-search">
+          <input
+            placeholder="Jump to a note…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setFocusOpen(true); }}
+            onFocus={() => setFocusOpen(true)}
+            onBlur={() => setTimeout(() => setFocusOpen(false), 150)}
+          />
+          {focusOpen && search && (
+            <ul className="graph-search-results">
+              {searchMatches.map((n) => (
+                <li key={n.id}>
+                  <button onMouseDown={() => focusNode(n.id)}>{n.title}</button>
+                </li>
+              ))}
+              {searchMatches.length === 0 && <li className="muted">No matches</li>}
+            </ul>
           )}
         </div>
       </div>
@@ -110,67 +266,89 @@ export function GraphView() {
       <div className="graph-wrap">
         <svg
           ref={svgRef}
-          width="100%"
-          height="620"
-          viewBox="0 0 900 600"
+          viewBox={`0 0 ${W} ${H}`}
           className="graph-svg"
-          onMouseLeave={() => setHover(null)}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
+          onMouseLeave={() => setHoverId(null)}
         >
-          <g>
-            {data.edges.map((e, i) => {
-              const a = layout.get(e.source);
-              const b = layout.get(e.target);
-              if (!a || !b) return null;
-              return (
-                <line
-                  key={i}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  className={dark ? 'edge edge-dark' : 'edge'}
-                />
-              );
-            })}
-          </g>
-          <g>
-            {data.nodes.map((n) => {
-              const p = layout.get(n.id);
-              if (!p) return null;
-              const isSeed = seed === n.id;
-              return (
-                <g
-                  key={n.id}
-                  transform={`translate(${p.x},${p.y})`}
-                  className="node-g"
-                  onClick={() => navigate(`/note/${encodeURIComponent(n.id)}`)}
-                  onMouseEnter={() => setHover(n)}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <circle
-                    r={n.linkCount > 12 ? 12 : n.linkCount > 5 ? 9 : 6}
-                    className={`node${isSeed ? ' node-seed' : ''}${
-                      n.rating !== undefined ? ' node-rated' : ''
-                    }`}
+          <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+            <g>
+              {data.edges.map((e, i) => {
+                const a = layout.get(e.source);
+                const b = layout.get(e.target);
+                if (!a || !b) return null;
+                const dim = activeId ? !(e.source === activeId || e.target === activeId) : false;
+                const active = activeId && (e.source === activeId || e.target === activeId);
+                return (
+                  <line
+                    key={i}
+                    x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                    className={`edge${active ? ' edge-active' : ''}`}
+                    strokeOpacity={dim ? 0.1 : active ? 1 : 0.5}
                   />
-                </g>
-              );
-            })}
+                );
+              })}
+            </g>
+            <g>
+              {data.nodes.map((n) => {
+                const p = layout.get(n.id);
+                if (!p) return null;
+                const isActive = activeId === n.id;
+                const isNeighbour = activeId && activeNeighbours.has(n.id);
+                const dim = activeId ? !(isActive || isNeighbour) : false;
+                return (
+                  <g
+                    key={n.id}
+                    transform={`translate(${p.x},${p.y})`}
+                    className="node-g"
+                    style={{ opacity: dim ? 0.2 : 1, cursor: 'pointer' }}
+                    onClick={() => onNodeClick(n)}
+                    onPointerEnter={() => setHoverId(n.id)}
+                    onPointerLeave={() => setHoverId(null)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <circle
+                      r={radius(n.linkCount)}
+                      fill={nodeColor(n)}
+                      stroke={isActive ? '#e0a63a' : 'rgba(0,0,0,0.25)'}
+                      strokeWidth={isActive ? 3 : 1.5}
+                    />
+                    {isActive && <circle r={radius(n.linkCount) + 5} fill="none" stroke="#e0a63a" strokeWidth={1} opacity={0.6} />}
+                  </g>
+                );
+              })}
+            </g>
           </g>
         </svg>
-        {hover && (
-          <div className="graph-hover">
-            <strong>{hover.title}</strong>
-            {hover.rating !== undefined && <div>★ {hover.rating}</div>}
-            <div>{hover.linkCount} connections</div>
-            {hover.tags.slice(0, 3).map((t) => (
-              <span key={t} className="tag-chip">#{t}</span>
-            ))}
-          </div>
-        )}
+
+        <div className="graph-legend">
+          <div className="legend-item"><span className="legend-dot rated" /> Rated</div>
+          <div className="legend-item"><span className="legend-dot unrated" /> Unrated</div>
+          <div className="legend-item"><span className="legend-dot bigger" /> More connections</div>
+        </div>
+
+        {activeId && (() => {
+          const n = data.nodes.find((x) => x.id === activeId);
+          if (!n) return null;
+          return (
+            <div className="graph-hover">
+              <strong>{n.title}</strong>
+              <div>{n.rating !== undefined ? `★ ${n.rating}` : 'Unrated'}</div>
+              <div>{n.linkCount} connections</div>
+              <div>{activeNeighbours.size} neighbours</div>
+              {n.tags.slice(0, 4).map((t) => (
+                <span key={t} className="tag-chip">#{t}</span>
+              ))}
+            </div>
+          );
+        })()}
       </div>
+
       <p className="muted hint">
-        Click a node to open it · selected note shows its 1-hop neighbours.
+        Scroll/pinch to zoom · drag to pan · hover a node to highlight its links · click to open.
       </p>
     </div>
   );

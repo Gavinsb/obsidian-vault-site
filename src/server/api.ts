@@ -91,9 +91,15 @@ export function createApi(service: VaultService, config: AppConfig): Router {
 
   r.get('/docs/*', async (req, res) => {
     const rel = docRel(req);
-    const doc = await service.getDocument(rel);
+    let doc = await service.getDocument(rel);
+    // Fall back to title/alias resolution so wiki links ([[Page Name]]) and
+    // bare markdown links resolve to the real note even in subfolders.
+    if (!doc) {
+      const hits = service.index.resolveTarget(rel);
+      if (hits.size) doc = await service.getDocument([...hits][0]);
+    }
     if (!doc) return res.status(404).json({ error: 'not found' });
-    contents.set(rel, doc.content);
+    contents.set(doc.meta.relPath, doc.content);
     res.json(doc);
   });
 

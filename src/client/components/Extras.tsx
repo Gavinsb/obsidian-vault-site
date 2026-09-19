@@ -108,6 +108,31 @@ export function OrphansView() {
 
 export function SettingsView({ config }: { config: AppConfig | null }) {
   const { theme, setTheme } = useTheme();
+  const [overview, setOverview] = useState<{ docCount: number; lastIndexedAt: string | null } | null>(null);
+  const [stats, setStats] = useState<{ noteCount: number; linkCount: number; backlinkCount: number; tagCount: number } | null>(null);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexResult, setReindexResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.overview().then((o) => setOverview({ docCount: o.docCount, lastIndexedAt: o.lastIndexedAt })).catch(() => {});
+    api.stats().then(setStats).catch(() => {});
+  }, []);
+
+  const doReindex = async () => {
+    setReindexing(true);
+    setReindexResult(null);
+    try {
+      const r = await api.reindex();
+      setReindexResult(`Re-indexed ${r.count} documents`);
+      api.overview().then((o) => setOverview({ docCount: o.docCount, lastIndexedAt: o.lastIndexedAt })).catch(() => {});
+      api.stats().then(setStats).catch(() => {});
+    } catch (e) {
+      setReindexResult(`Failed: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setReindexing(false);
+    }
+  };
+
   return (
     <div className="view">
       <h1>Settings</h1>
@@ -125,6 +150,27 @@ export function SettingsView({ config }: { config: AppConfig | null }) {
           Change the vault by editing <code>VAULT_PATH</code> or{' '}
           <code>config/default.json</code>, then restart the server. No app cache lives in the vault.
         </p>
+      </section>
+      <section className="card">
+        <h3>Index</h3>
+        <dl className="meta-list">
+          <dt>Status</dt>
+          <dd>{overview ? 'Indexed' : '…'}</dd>
+          <dt>Documents</dt>
+          <dd>{overview?.docCount ?? '—'}</dd>
+          <dt>Links</dt>
+          <dd>{stats?.linkCount ?? '—'}</dd>
+          <dt>Backlinks</dt>
+          <dd>{stats?.backlinkCount ?? '—'}</dd>
+          <dt>Tags</dt>
+          <dd>{stats?.tagCount ?? '—'}</dd>
+          <dt>Last indexed</dt>
+          <dd>{overview?.lastIndexedAt ? new Date(overview.lastIndexedAt).toLocaleString() : '—'}</dd>
+        </dl>
+        <button className="primary" onClick={doReindex} disabled={reindexing}>
+          {reindexing ? 'Re-indexing…' : 'Re-index now'}
+        </button>
+        {reindexResult && <p className="muted reindex-result">{reindexResult}</p>}
       </section>
       <section className="card">
         <h3>Theme</h3>

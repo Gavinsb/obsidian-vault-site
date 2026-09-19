@@ -1,8 +1,8 @@
 {
   "vaultPath": "",
   "dataDir": "data",
-  "siteName": "Knowledge Vault",
-  "theme": "dark",
+  "siteName": "Doug KX",
+  "theme": "system",
   "ratingScale": 5,
   "excludedFolders": [".obsidian", ".git", ".trash", "90 Templates"],
   "excludedFiles": [],

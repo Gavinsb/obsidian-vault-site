@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, type VaultOverview, type ChangeEntry, type VaultDocSummary } from '../api';
 import { RatingStars } from './RatingStars';
 
-export function Dashboard() {
+export function Dashboard({ siteName }: { siteName: string }) {
   const [overview, setOverview] = useState<VaultOverview | null>(null);
   const [recent, setRecent] = useState<VaultDocSummary[]>([]);
   const [activity, setActivity] = useState<{
@@ -12,6 +12,7 @@ export function Dashboard() {
     lastChanges: ChangeEntry[];
   } | null>(null);
   const [timeline, setTimeline] = useState<{ date: string; title: string; relPath: string }[]>([]);
+  const [homeDoc, setHomeDoc] = useState<VaultDocSummary | null>(null);
   const [newNote, setNewNote] = useState(false);
   const [notePath, setNotePath] = useState('');
   const navigate = useNavigate();
@@ -19,12 +20,23 @@ export function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const [o, r, a] = await Promise.all([api.overview(), api.recent(8), api.activity()]);
+        const [o, r, a, docs] = await Promise.all([
+          api.overview(),
+          api.recent(8),
+          api.activity(),
+          api.docs(),
+        ]);
         setOverview(o);
         setRecent(r);
         setActivity(a);
         const tl = (await api.timeline()).slice(0, 6);
         setTimeline(tl);
+        // Home note = the vault's map-of-content (00 Home folder, or title heuristic).
+        const home =
+          docs.find((d) => d.folder === '00 Home') ??
+          docs.find((d) => /home|index/i.test(d.title)) ??
+          null;
+        setHomeDoc(home);
       } catch {
         /* ignore */
       }
@@ -53,8 +65,24 @@ export function Dashboard() {
   return (
     <div className="view">
       <div className="view-header">
-        <h1>{overview?.name ?? 'Knowledge Vault'}</h1>
-        <p className="muted">{overview?.docCount ?? 0} notes · {overview?.folderCount ?? 0} folders</p>
+        <h1>{siteName}</h1>
+        <p className="muted">
+          {overview?.docCount ?? 0} notes · {overview?.folderCount ?? 0} folders
+        </p>
+      </div>
+
+      <div className="quick-links">
+        {homeDoc && (
+          <Link className="quick-link primary-link" to={`/note/${encodeURIComponent(homeDoc.relPath)}`}>
+            📖 Open Home Note
+          </Link>
+        )}
+        <Link className="quick-link" to="/knowledge-map">
+          ◇ Knowledge Map
+        </Link>
+        <Link className="quick-link" to="/graph">
+          ✳ Graph
+        </Link>
       </div>
 
       {newNote && (
@@ -90,7 +118,7 @@ export function Dashboard() {
           {recent.length === 0 ? (
             <p className="muted">No documents yet.</p>
           ) : (
-            <ul className="note-list">
+            <ul className="note-list note-list-col">
               {recent.map((d) => (
                 <li key={d.relPath}>
                   <Link to={`/note/${encodeURIComponent(d.relPath)}`} className="note-title">
