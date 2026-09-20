@@ -14,7 +14,8 @@ as e.g. `S4-3`.
 
 - **Status:** collecting items — no planning or implementation authorized
 - **Opened:** 2026-09-20
-- **Items:** none yet
+- **Items (1):**
+  1. **S5-1 — Fix `invalid_if_match` mutation failures:** saving an edited file currently returns `Error: invalid_if_match`; the same error occurs when rating a note. Restore successful explicit saves and ratings while preserving ETag/`If-Match` concurrency protection and stale-write rejection.
 
 ---
 
