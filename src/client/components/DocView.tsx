@@ -16,6 +16,7 @@ import {
   findAutocompleteTrigger,
   type AutocompleteTrigger,
 } from "../../shared/editor-utils";
+import { EditingHelp } from "./EditingHelp";
 type Mode = "read" | "edit" | "split";
 
 export function DocView() {
@@ -204,6 +205,11 @@ export function DocView() {
           kind: "warn",
           msg: "Sign in again to save. Your draft is preserved.",
         });
+      else if (e instanceof ApiError && (e.status === 400 || e.status === 428))
+        setFlash({
+          kind: "warn",
+          msg: "Could not verify this document's current version. Reload the note and try again — your draft is preserved.",
+        });
       else setFlash({ kind: "err", msg: String(e) });
     } finally {
       setSaving(false);
@@ -219,7 +225,12 @@ export function DocView() {
       void out;
       await loadPublic(canonicalPath, false);
     } catch (e) {
-      setFlash({ kind: "err", msg: String(e) });
+      if (e instanceof ApiError && (e.status === 400 || e.status === 428))
+        setFlash({
+          kind: "warn",
+          msg: "Could not verify this document's current version. Reload the note and try again — your rating or change is preserved in the editor.",
+        });
+      else setFlash({ kind: "err", msg: String(e) });
     }
   };
   const cancel = () => {
@@ -528,6 +539,7 @@ export function DocView() {
             <h4>File info</h4>
             <Meta meta={meta} />
           </section>
+          {canEdit && <EditingHelp />}
           <section className="context-block">
             <h4>Backlinks ({doc.backlinks.length})</h4>
             <ul className="link-list">

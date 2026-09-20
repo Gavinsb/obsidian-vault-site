@@ -182,7 +182,7 @@ export function createApi(
     if (!doc) return res.status(404).json({ error: "not_found" });
     const tag = etagFor(doc.meta.mtimeMs, doc.meta.contentHash);
     res.setHeader("ETag", tag);
-    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Cache-Control", "private, no-store, no-transform");
     res.setHeader("Vary", "Cookie");
     res.json(doc);
   });
@@ -210,14 +210,12 @@ export function createApi(
     if (out.status === 404) return res.status(404).json({ error: "not_found" });
     if (out.status === 412) {
       res.setHeader("ETag", out.currentEtag);
-      return res
-        .status(412)
-        .json({
-          error: "precondition_failed",
-          message: "The file changed after editing began.",
-          currentEtag: out.currentEtag,
-          currentMtimeMs: out.currentMtimeMs,
-        });
+      return res.status(412).json({
+        error: "precondition_failed",
+        message: "The file changed after editing began.",
+        currentEtag: out.currentEtag,
+        currentMtimeMs: out.currentMtimeMs,
+      });
     }
     res.setHeader("ETag", out.etag);
     res.json({ ok: true, meta: (await service.getDocument(rel))?.meta });
@@ -279,13 +277,11 @@ export function createApi(
     const currentTag = etagFor(current.meta.mtimeMs, current.meta.contentHash);
     if (tag !== currentTag) {
       res.setHeader("ETag", currentTag);
-      return res
-        .status(412)
-        .json({
-          error: "precondition_failed",
-          currentEtag: currentTag,
-          currentMtimeMs: current.meta.mtimeMs,
-        });
+      return res.status(412).json({
+        error: "precondition_failed",
+        currentEtag: currentTag,
+        currentMtimeMs: current.meta.mtimeMs,
+      });
     }
     res.json(await service.deleteDocument(rel));
   });

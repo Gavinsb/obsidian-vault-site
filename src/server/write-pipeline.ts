@@ -5,10 +5,25 @@ import type { VaultService } from "./vault-service.js";
 export function etagFor(mtimeMs: number, contentHash: string): string {
   return `"${Math.trunc(mtimeMs).toString(16)}-${contentHash.slice(0, 16)}"`;
 }
+
+const APP_ETAG_INNER = /^[0-9a-f]+-[0-9a-f]{16}$/i;
+
+/**
+ * Normalize a client `If-Match` value into the canonical strong app ETag.
+ * Accepts the strong quoted form we emit, a weak `W/` prefix some proxies
+ * apply, an unquoted transport loss, and a re-quoted value. Returns the
+ * canonical `"mtime-hash16"` token, or null for anything malformed so the
+ * caller can keep rejecting junk (wildcards, wrong shape, empty, unparsable).
+ */
 export function parseIfMatch(value: string | undefined): string | null {
   if (!value) return null;
-  const first = value.split(",")[0].trim();
-  return /^"[0-9a-f]+-[0-9a-f]{16}"$/i.test(first) ? first : null;
+  let token = value.split(",")[0].trim();
+  token = token.replace(/^W\//i, "");
+  if (token.length >= 2 && token.startsWith('"') && token.endsWith('"')) {
+    token = token.slice(1, -1);
+  }
+  if (!APP_ETAG_INNER.test(token)) return null;
+  return `"${token.toLowerCase()}"`;
 }
 export function injectUpdated(content: string, now = new Date()): string {
   return setFrontmatterField(content, "updated", now.toISOString());

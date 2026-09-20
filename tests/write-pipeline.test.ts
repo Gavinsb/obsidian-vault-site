@@ -48,6 +48,28 @@ describe("ETag write pipeline", () => {
     expect(parseIfMatch(e)).toBe(e);
     expect(parseIfMatch(undefined)).toBeNull();
   });
+  it("normalizes weak, unquoted, and re-quoted live ETag variants", async () => {
+    const d = await svc.provider.readDocument("A.md");
+    const e = etagFor(d!.meta.mtimeMs, d!.meta.contentHash);
+    const inner = e.slice(1, -1);
+    expect(parseIfMatch(`W/${e}`)).toBe(e);
+    expect(parseIfMatch(`w/${e}`)).toBe(e);
+    expect(parseIfMatch(inner)).toBe(e);
+    expect(parseIfMatch(`  ${e}  `)).toBe(e);
+  });
+  it("rejects malformed, wildcard, and ambiguous preconditions", async () => {
+    const d = await svc.provider.readDocument("A.md");
+    const e = etagFor(d!.meta.mtimeMs, d!.meta.contentHash);
+    expect(parseIfMatch("*")).toBeNull();
+    expect(parseIfMatch("W/*")).toBeNull();
+    expect(parseIfMatch('""')).toBeNull();
+    expect(parseIfMatch('"not-an-etag"')).toBeNull();
+    expect(parseIfMatch("abc")).toBeNull();
+    expect(parseIfMatch('"abcd" "ef01-234567890abcdef"')).toBeNull();
+    expect(parseIfMatch('"gg-1234567890abcdef"')).toBeNull();
+    // Nested re-quoting is ambiguous and must stay rejected.
+    expect(parseIfMatch(`"${e}"`)).toBeNull();
+  });
   it("injects server UTC updated while preserving unrelated bytes/order/body", () => {
     const now = new Date("2026-09-20T01:02:03.004Z");
     const out = injectUpdated(

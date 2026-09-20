@@ -176,6 +176,41 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .link-list li.broken { color: var(--warn); }
 .tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
 
+/* ---------- Editing help (S5) ---------- */
+.edit-help { padding: 0; overflow: hidden; }
+.edit-help-heading { margin: 0 !important; }
+.edit-help-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; border: 0; background: none; color: var(--text);
+  font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+}
+.edit-help-toggle:hover { background: var(--bg-alt); }
+.edit-help-caret { color: var(--text-dim); font-size: 11px; }
+.edit-help-content { padding: 0 12px 12px; font-size: 13px; }
+.edit-help-content p { margin: 6px 0; color: var(--text-dim); }
+.edit-help-content code {
+  background: var(--bg-alt); border: 1px solid var(--border);
+  padding: 1px 4px; border-radius: 4px; font-size: 12px;
+  white-space: nowrap;
+}
+.edit-help-section { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.edit-help-section summary {
+  cursor: pointer; padding: 7px 10px; font-weight: 600; font-size: 13px;
+  color: var(--text); list-style: none;
+}
+.edit-help-section summary::-webkit-details-marker { display: none; }
+.edit-help-section summary::before { content: "▸ "; color: var(--accent); }
+.edit-help-section[open] summary::before { content: "▾ "; }
+.edit-help-body { padding: 0 10px 8px; }
+.edit-help-list { margin: 4px 0; padding-left: 16px; }
+.edit-help-list li { margin: 4px 0; }
+.edit-help-example {
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 10px; overflow-x: auto; margin: 6px 0;
+}
+.edit-help-example code { background: none; border: 0; padding: 0; white-space: pre; }
+
 .editor-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .saved-hint { color: var(--text-dim); font-size: 13px; }
 .editor-pane {
