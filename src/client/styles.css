@@ -26,6 +26,8 @@ html[data-theme='light'] {
   --text-dim: #6b7484;
   --accent: #2f6fe4;
   --accent-soft: #dbe7fb;
+  --btn-bg: #f1f3f7;
+  --btn-border: #c9d0dc;
 }
 
 * { box-sizing: border-box; }
