@@ -1,117 +1,113 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { api, type VaultDocSummary } from '../api';
-
-interface TagInfo {
-  tag: string;
-  count: number;
-  parent?: string;
-}
-
-/** Vibrant palette for the word cloud. */
-const PALETTE: Array<[number, number, number]> = [
-  [79, 140, 255],   // blue
-  [55, 200, 119],   // green
-  [224, 166, 58],   // amber
-  [186, 104, 255],  // purple
-  [255, 122, 159],  // pink
-  [56, 199, 199],   // teal
-  [255, 149, 82],   // orange
-  [122, 190, 255],  // light blue
-];
-
-function hash(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-interface Placed {
-  tag: TagInfo;
-  x: number; // 0..100 (%)
-  y: number; // 0..100 (%)
-  size: number;
-  color: [number, number, number];
-  alpha: number;
-}
-
-/**
- * Deterministic "word cloud": chips scattered at pseudo-random positions,
- * sized by frequency, coloured from a multi-hue palette.
- */
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { api, type VaultDocSummary } from "../api";
+import {
+  sortTags,
+  stableTagHue,
+  type TagInfo,
+  type TagSort,
+} from "../../shared/editor-utils";
 export function TagsView() {
   const [tags, setTags] = useState<TagInfo[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [docs, setDocs] = useState<VaultDocSummary[]>([]);
-
+  const [sort, setSort] = useState<TagSort>("count");
   useEffect(() => {
-    api.tags().then(setTags).catch(() => {});
+    api
+      .tags()
+      .then(setTags)
+      .catch(() => {});
   }, []);
-
+  const ordered = useMemo(() => sortTags(tags, sort), [tags, sort]);
+  const max = Math.max(1, ...tags.map((t) => t.count)),
+    min = Math.min(max, ...tags.map((t) => t.count));
   const select = async (t: string) => {
     setSelected(t);
     setDocs(await api.tagDocs(t));
   };
-
-  const maxCount = tags.length ? Math.max(...tags.map((t) => t.count)) : 1;
-
-  const placed: Placed[] = useMemo(() => {
-    return tags
-      .map((tag) => {
-        const ratio = tag.count / maxCount;
-        const h = hash(tag.tag);
-        const size = 13 + ratio * 22; // 13–35px
-        const x = 4 + ((h * 7 + 3) % 920) / 10; // 4–96%
-        const y = 4 + ((h * 13 + 5) % 820) / 10; // 4–86%
-        const color = PALETTE[h % PALETTE.length];
-        const alpha = 0.55 + ratio * 0.45;
-        return { tag, x, y, size, color, alpha };
-      })
-      .sort((a, b) => b.size - a.size);
-  }, [tags, maxCount]);
-
   return (
-    <div className="view">
+    <div className="view tags-view">
       <h1>Tags</h1>
-      <p className="muted">Bigger = more notes. Tap a tag to see its notes.</p>
-      <div className="word-cloud">
-        {placed.map(({ tag, x, y, size, color, alpha }) => {
-          const [r, g, b] = color;
-          return (
-            <button
-              key={tag.tag}
-              className={`word-cloud-chip${selected === tag.tag ? ' selected' : ''}`}
-              onClick={() => select(tag.tag)}
-              title={`#${tag.tag} — ${tag.count} note${tag.count === 1 ? '' : 's'}${
-                tag.parent ? ` · nested under #${tag.parent}` : ''
-              }`}
-              style={{
-                left: `${x}%`,
-                top: `${y}%`,
-                fontSize: size,
-                color: `rgba(${r}, ${g}, ${b}, ${alpha})`,
-                borderColor: `rgba(${r}, ${g}, ${b}, ${alpha * 0.6})`,
-              }}
-            >
-              #{tag.tag}
-            </button>
-          );
-        })}
-        {tags.length === 0 && <p className="muted">No tags found.</p>}
-      </div>
-
-      {selected && (
-        <section className="card">
-          <h3>Notes tagged #{selected}</h3>
-          <ul className="note-list">
-            {docs.map((d) => (
-              <li key={d.relPath}>
-                <Link to={`/note/${encodeURIComponent(d.relPath)}`}>{d.title}</Link>
-                <span className="folder-path">{d.folder}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <p className="muted">Bigger = more notes. Select a tag in either view.</p>
+      {tags.length === 0 ? (
+        <div className="card">No tags found.</div>
+      ) : (
+        <>
+          <div className="tags-layout">
+            <div className="tag-visual-cloud" aria-label="Tag cloud">
+              {sortTags(tags, "count").map((t, i) => {
+                const ratio = max === min ? 0.5 : (t.count - min) / (max - min);
+                return (
+                  <button
+                    key={t.tag}
+                    className={selected === t.tag ? "selected" : ""}
+                    title={`#${t.tag} — ${t.count} note${t.count === 1 ? "" : "s"}`}
+                    onClick={() => void select(t.tag)}
+                    style={{
+                      fontSize: `clamp(0.9rem, ${1 + ratio * 1.8}rem, 2.8rem)`,
+                      color: `hsl(${stableTagHue(t.tag)} 70% 62%)`,
+                      fontWeight: ratio > 0.55 ? 750 : 600,
+                      transform:
+                        i % 7 === 4
+                          ? "rotate(-4deg)"
+                          : i % 9 === 3
+                            ? "rotate(3deg)"
+                            : "none",
+                    }}
+                  >
+                    #{t.tag}
+                  </button>
+                );
+              })}
+            </div>
+            <aside className="tag-directory card">
+              <div className="tag-directory-head">
+                <h3>Directory</h3>
+                <div role="group" aria-label="Sort tags">
+                  <button
+                    className={sort === "count" ? "active" : ""}
+                    onClick={() => setSort("count")}
+                  >
+                    Count
+                  </button>
+                  <button
+                    className={sort === "alpha" ? "active" : ""}
+                    onClick={() => setSort("alpha")}
+                  >
+                    A–Z
+                  </button>
+                </div>
+              </div>
+              <div className="tag-directory-list">
+                {ordered.map((t) => (
+                  <button
+                    key={t.tag}
+                    className={selected === t.tag ? "selected" : ""}
+                    onClick={() => void select(t.tag)}
+                  >
+                    <span>#{t.tag}</span>
+                    <strong>{t.count}</strong>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          </div>
+          {selected && (
+            <section className="card selected-tag-notes">
+              <h3>Notes tagged #{selected}</h3>
+              <ul className="note-list">
+                {docs.map((d) => (
+                  <li key={d.relPath}>
+                    <Link to={`/note/${encodeURIComponent(d.relPath)}`}>
+                      {d.title}
+                    </Link>
+                    <span className="folder-path">{d.folder}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
     </div>
   );

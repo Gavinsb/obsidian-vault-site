@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { api, type VaultOverview, type ChangeEntry, type VaultDocSummary } from '../api';
-import { RatingStars } from './RatingStars';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  api,
+  type VaultOverview,
+  type ChangeEntry,
+  type VaultDocSummary,
+} from "../api";
+import { RatingStars } from "./RatingStars";
+import { useAuth } from "../auth";
 
 export function Dashboard({ siteName }: { siteName: string }) {
   const [overview, setOverview] = useState<VaultOverview | null>(null);
@@ -11,12 +17,15 @@ export function Dashboard({ siteName }: { siteName: string }) {
     pagesChangedThisWeek: number;
     lastChanges: ChangeEntry[];
   } | null>(null);
-  const [timeline, setTimeline] = useState<{ date: string; title: string; relPath: string }[]>([]);
+  const [timeline, setTimeline] = useState<
+    { date: string; title: string; relPath: string }[]
+  >([]);
   const [homeDoc, setHomeDoc] = useState<VaultDocSummary | null>(null);
   const [newNote, setNewNote] = useState(false);
-  const [notePath, setNotePath] = useState('');
+  const [notePath, setNotePath] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     (async () => {
@@ -34,7 +43,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
         setTimeline(tl);
         // Home note = the vault's map-of-content (00 Home folder, or title heuristic).
         const home =
-          docs.find((d) => d.folder === '00 Home') ??
+          docs.find((d) => d.folder === "00 Home") ??
           docs.find((d) => /home|index/i.test(d.title)) ??
           null;
         setHomeDoc(home);
@@ -45,15 +54,27 @@ export function Dashboard({ siteName }: { siteName: string }) {
   }, []);
 
   useEffect(() => {
-    const onNew = () => setNewNote(true);
-    window.addEventListener('kv:new-note', onNew);
-    return () => window.removeEventListener('kv:new-note', onNew);
-  }, []);
+    const onNew = () => {
+      if (user) setNewNote(true);
+    };
+    window.addEventListener("kv:new-note", onNew);
+    return () => window.removeEventListener("kv:new-note", onNew);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setNewNote(false);
+      setNotePath("");
+      setCreateError(null);
+    }
+  }, [user]);
 
   const createNote = async () => {
     if (!notePath.trim()) return;
-    const p = notePath.trim().endsWith('.md') ? notePath.trim() : `${notePath.trim()}.md`;
-    const content = `---\ntype: note\nstatus: draft\ncreated: ${new Date().toISOString().slice(0, 10)}\nupdated: ${new Date().toISOString().slice(0, 10)}\ntags: []\n---\n\n# ${p.replace(/\.md$/, '').split('/').pop()}\n\n`;
+    const p = notePath.trim().endsWith(".md")
+      ? notePath.trim()
+      : `${notePath.trim()}.md`;
+    const content = `---\ntype: note\nstatus: draft\ncreated: ${new Date().toISOString().slice(0, 10)}\nupdated: ${new Date().toISOString().slice(0, 10)}\ntags: []\n---\n\n# ${p.replace(/\.md$/, "").split("/").pop()}\n\n`;
     try {
       await api.createDoc(p, content);
       navigate(`/note/${encodeURIComponent(p)}`);
@@ -74,7 +95,10 @@ export function Dashboard({ siteName }: { siteName: string }) {
 
       <div className="quick-links">
         {homeDoc && (
-          <Link className="quick-link primary-link" to={`/note/${encodeURIComponent(homeDoc.relPath)}`}>
+          <Link
+            className="quick-link primary-link"
+            to={`/note/${encodeURIComponent(homeDoc.relPath)}`}
+          >
             📖 Open Home Note
           </Link>
         )}
@@ -86,32 +110,39 @@ export function Dashboard({ siteName }: { siteName: string }) {
         </Link>
       </div>
 
-      {newNote && (
+      {user && newNote && (
         <div className="new-note-bar">
           <input
             placeholder="Folder/Note Name.md  (leave blank to cancel)"
             value={notePath}
             onChange={(e) => setNotePath(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && createNote()}
+            onKeyDown={(e) => e.key === "Enter" && createNote()}
             autoFocus
           />
           <button className="primary" onClick={createNote}>
             Create
           </button>
-          <button onClick={() => { setNewNote(false); setCreateError(null); }}>Cancel</button>
+          <button
+            onClick={() => {
+              setNewNote(false);
+              setCreateError(null);
+            }}
+          >
+            Cancel
+          </button>
         </div>
       )}
       {createError && <div className="flash flash-err">{createError}</div>}
 
       <div className="stat-grid">
-        <Stat label="Total notes" value={stats?.noteCount ?? '—'} />
-        <Stat label="Links" value={stats?.linkCount ?? '—'} />
-        <Stat label="Backlinks" value={stats?.backlinkCount ?? '—'} />
-        <Stat label="Tags" value={stats?.tagCount ?? '—'} />
-        <Stat label="Orphans" value={stats?.orphanCount ?? '—'} />
-        <Stat label="Broken links" value={stats?.brokenLinkCount ?? '—'} />
-        <Stat label="Avg rating" value={stats?.avgRating ?? '—'} />
-        <Stat label="Unrated" value={stats?.unratedCount ?? '—'} />
+        <Stat label="Total notes" value={stats?.noteCount ?? "—"} />
+        <Stat label="Links" value={stats?.linkCount ?? "—"} />
+        <Stat label="Backlinks" value={stats?.backlinkCount ?? "—"} />
+        <Stat label="Tags" value={stats?.tagCount ?? "—"} />
+        <Stat label="Orphans" value={stats?.orphanCount ?? "—"} />
+        <Stat label="Broken links" value={stats?.brokenLinkCount ?? "—"} />
+        <Stat label="Avg rating" value={stats?.avgRating ?? "—"} />
+        <Stat label="Unrated" value={stats?.unratedCount ?? "—"} />
       </div>
 
       <div className="dash-cols">
@@ -123,14 +154,23 @@ export function Dashboard({ siteName }: { siteName: string }) {
             <ul className="note-list note-list-col">
               {recent.map((d) => (
                 <li key={d.relPath}>
-                  <Link to={`/note/${encodeURIComponent(d.relPath)}`} className="note-title">
+                  <Link
+                    to={`/note/${encodeURIComponent(d.relPath)}`}
+                    className="note-title"
+                  >
                     {d.title}
                   </Link>
                   <div className="note-sub">
                     <span>{timeAgo(d.mtimeMs)}</span>
                     <RatingStars value={d.rating} size={12} />
                     {d.tags.slice(0, 3).map((t) => (
-                      <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">#{t}</Link>
+                      <Link
+                        key={t}
+                        to={`/search?tag=${encodeURIComponent(t)}`}
+                        className="tag-chip"
+                      >
+                        #{t}
+                      </Link>
                     ))}
                   </div>
                 </li>
@@ -149,7 +189,9 @@ export function Dashboard({ siteName }: { siteName: string }) {
             {(activity?.lastChanges ?? []).slice(0, 8).map((c) => (
               <li key={`${c.seq}`}>
                 <span className={`change-badge ${c.type}`}>{c.type}</span>
-                <Link to={`/note/${encodeURIComponent(c.relPath.split(' -> ').pop() ?? c.relPath)}`}>
+                <Link
+                  to={`/note/${encodeURIComponent(c.relPath.split(" -> ").pop() ?? c.relPath)}`}
+                >
                   {c.title ?? c.relPath}
                 </Link>
               </li>
@@ -163,7 +205,9 @@ export function Dashboard({ siteName }: { siteName: string }) {
             {timeline.map((t, i) => (
               <li key={i}>
                 <span className="tl-date">{t.date}</span>
-                <Link to={`/note/${encodeURIComponent(t.relPath)}`}>{t.title}</Link>
+                <Link to={`/note/${encodeURIComponent(t.relPath)}`}>
+                  {t.title}
+                </Link>
               </li>
             ))}
           </ul>

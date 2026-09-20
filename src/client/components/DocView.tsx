@@ -1,193 +1,297 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { Document } from '../api';
-import { api } from '../api';
-import { Markdown, stripFrontmatter, splitTitle } from './Markdown';
-import { RatingStars } from './RatingStars';
-import { Breadcrumbs } from './Breadcrumbs';
-
-type Mode = 'read' | 'edit' | 'split';
+import { useEffect, useRef, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import type { Document, SearchHit } from "../api";
+import { ApiError, api } from "../api";
+import { useAuth } from "../auth";
+import { Markdown, stripFrontmatter, splitTitle } from "./Markdown";
+import { RatingStars } from "./RatingStars";
+import { Breadcrumbs } from "./Breadcrumbs";
+import {
+  acceptAgentReview,
+  parseAgentBlocks,
+  rejectAgentReview,
+} from "../../shared/agent-blocks";
+import {
+  applyAutocomplete,
+  findAutocompleteTrigger,
+  type AutocompleteTrigger,
+} from "../../shared/editor-utils";
+type Mode = "read" | "edit" | "split";
 
 export function DocView() {
   const { path: pathParam } = useParams();
-  const lookup = pathParam ? decodeURIComponent(pathParam) : '';
+  const lookup = pathParam ? decodeURIComponent(pathParam) : "";
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>('read');
-  const [draft, setDraft] = useState('');
-  const [baseHash, setBaseHash] = useState('');
+  const [mode, setMode] = useState<Mode>("read");
+  const [draft, setDraft] = useState("");
+  const [baseline, setBaseline] = useState("");
+  const [baseEtag, setBaseEtag] = useState("");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<any>(null);
-  const [flash, setFlash] = useState<{ kind: string; msg: string } | null>(null);
+  const [flash, setFlash] = useState<{ kind: string; msg: string } | null>(
+    null,
+  );
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const timer = useRef<number | null>(null);
-
-  // The URL may contain a title/alias; the canonical path is the resolved note.
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmExternal, setConfirmExternal] = useState(false);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [trigger, setTrigger] = useState<AutocompleteTrigger | null>(null);
+  const [suggestions, setSuggestions] = useState<
+    Array<{ value: string; detail: string }>
+  >([]);
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
+  const seq = useRef(0);
+  const tagsCache = useRef<Array<{ tag: string; count: number }> | null>(null);
   const canonicalPath = doc?.meta.relPath ?? lookup;
-
-  const load = async (p: string, showSpinner = true) => {
-    if (showSpinner) setLoading(true);
+  const dirty = draft !== baseline;
+  const reviews = parseAgentBlocks(draft);
+  const canEdit = !!user;
+  const loadPublic = async (p: string, spin = true) => {
+    if (spin) setLoading(true);
     setError(null);
     try {
       const d = await api.getDoc(p);
       setDoc(d);
-      setDraft(d.content);
-      setBaseHash(d.meta.contentHash); // SHA-256 baseline (matches server)
-      setConflict(null);
+      if (mode === "read") {
+        setDraft(d.content);
+        setBaseline(d.content);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
   };
-
+  const loadSource = async () => {
+    const out = await api.getSource(canonicalPath);
+    setDoc(out.data);
+    setDraft(out.data.content);
+    setBaseline(out.data.content);
+    setBaseEtag(out.etag ?? "");
+    setConflict(null);
+    return out;
+  };
   useEffect(() => {
     if (lookup) {
-      setMode('read');
-      load(lookup);
+      setMode("read");
+      void loadPublic(lookup);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lookup]);
-
-  // Poll external changes for the current doc.
   useEffect(() => {
     if (!canonicalPath) return;
-    const t = setInterval(async () => {
-      try {
-        const fresh = await api.getDoc(canonicalPath);
-        setDoc((prev) => {
-          if (prev && fresh && fresh.content !== prev.content && mode === 'read') {
-            setBaseHash(fresh.meta.contentHash);
-            setFlash({ kind: 'info', msg: 'Updated from external change' });
-          }
-          return fresh;
-        });
-      } catch {
-        /* ignore */
-      }
+    const t = setInterval(() => {
+      if (mode === "read") void loadPublic(canonicalPath, false);
     }, 4000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canonicalPath, mode]);
-
-  if (loading && !doc) {
+  useEffect(() => {
+    const fn = (e: BeforeUnloadEvent) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", fn);
+    return () => window.removeEventListener("beforeunload", fn);
+  }, [dirty]);
+  useEffect(() => {
+    if (!trigger) {
+      setSuggestions([]);
+      return;
+    }
+    const id = ++seq.current;
+    const t = setTimeout(async () => {
+      try {
+        if (trigger.kind === "wikilink") {
+          const r = await api.search(trigger.query);
+          if (id !== seq.current) return;
+          setSuggestions(
+            r.results
+              .slice(0, 8)
+              .map((x: SearchHit) => ({ value: x.title, detail: x.folder })),
+          );
+        } else {
+          const all = tagsCache.current ?? (await api.tags());
+          tagsCache.current = all;
+          if (id !== seq.current) return;
+          setSuggestions(
+            all
+              .filter((x) =>
+                x.tag.toLowerCase().includes(trigger.query.toLowerCase()),
+              )
+              .slice(0, 8)
+              .map((x) => ({
+                value: x.tag,
+                detail: `${x.count} note${x.count === 1 ? "" : "s"}`,
+              })),
+          );
+        }
+      } catch {
+        if (id === seq.current) setSuggestions([]);
+      }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [trigger?.kind, trigger?.query]);
+  if (loading && !doc)
     return (
       <div className="view">
         <div className="skeleton skeleton-title" />
-        <div className="skeleton skeleton-line w80" />
         <div className="skeleton skeleton-line" />
-        <div className="skeleton skeleton-line w60" />
-        <div className="skeleton skeleton-line w40" />
       </div>
     );
-  }
-  if (error && !doc) {
+  if (error && !doc)
     return (
       <div className="view">
         <div className="card error-card not-found">
           <h2>Document not found</h2>
-          <p>The page you're looking for doesn't exist or may have been moved.</p>
-          <p className="muted">{error}</p>
-          <button className="primary" onClick={() => navigate('/')}>← Back to home</button>
+          <p>{error}</p>
+          <button className="primary" onClick={() => navigate("/")}>
+            ← Back to home
+          </button>
         </div>
       </div>
     );
-  }
   if (!doc) return null;
-
   const meta = doc.meta;
-  const onRating = async (v: number) => {
-    try {
-      await api.rate(canonicalPath, v);
-      const d = await api.getDoc(canonicalPath);
-      setDoc(d);
-      setBaseHash(d.meta.contentHash);
-      setFlash({ kind: 'ok', msg: `Rated ${v}★` });
-    } catch (e) {
-      setFlash({ kind: 'err', msg: `Failed to save rating: ${e}` });
-    }
-  };
-
-  const onToggleFavorite = async () => {
-    try {
-      await api.setMeta(canonicalPath, { favorite: meta.favorite ? false : true });
-      const d = await api.getDoc(canonicalPath);
-      setDoc(d);
-      setBaseHash(d.meta.contentHash);
-    } catch (e) {
-      setFlash({ kind: 'err', msg: String(e) });
-    }
-  };
-
-  const onSave = async () => {
-    if (conflict?.dismissEditor) {
-      await doSave(null);
+  const enter = async (next: Mode) => {
+    if (!user) {
+      setFlash({ kind: "warn", msg: "Sign in to edit." });
       return;
     }
-    await doSave(baseHash);
+    try {
+      if (mode === "read") await loadSource();
+      setMode(next);
+    } catch (e) {
+      setFlash({ kind: "err", msg: String(e) });
+    }
   };
-
-  const doSave = async (expectedHash: string | null) => {
+  const refreshAfter = async () => {
+    const out = await api.getSource(canonicalPath);
+    setDoc(out.data);
+    setDraft(out.data.content);
+    setBaseline(out.data.content);
+    setBaseEtag(out.etag ?? "");
+    return out;
+  };
+  const onSave = async (etag = baseEtag, explicitOverwrite = false) => {
+    if (saving || !dirty || (!explicitOverwrite && !!conflict)) return;
+    setSaving(true);
     setFlash(null);
     try {
-      await api.saveDoc(canonicalPath, draft, expectedHash ?? '');
+      const out = await api.saveDoc(canonicalPath, draft, etag);
+      setBaseEtag(out.etag ?? "");
+      await refreshAfter();
+      tagsCache.current = null;
       setSavedAt(new Date());
-      const d = await api.getDoc(canonicalPath);
-      setDoc(d);
-      setBaseHash(d.meta.contentHash);
       setConflict(null);
-      setFlash({ kind: 'ok', msg: 'Saved' });
-    } catch (e: any) {
-      if (e?.status === 409) {
-        setConflict({ remote: true });
-        setFlash({
-          kind: 'warn',
-          msg: 'Conflict: the file changed externally while you were editing.',
-        });
-      } else {
-        setFlash({ kind: 'err', msg: String(e?.message ?? e) });
-      }
-    }
-  };
-
-  const onDelete = async () => {
-    try {
-      await api.deleteDoc(canonicalPath);
-      navigate('/');
+      setConfirmOverwrite(false);
+      setFlash({ kind: "ok", msg: "Saved" });
     } catch (e) {
-      setFlash({ kind: 'err', msg: String(e) });
+      if (e instanceof ApiError && e.status === 412) {
+        setConflict(e.body);
+        setFlash({
+          kind: "warn",
+          msg: "The file changed externally. Your draft is preserved.",
+        });
+      } else if (e instanceof ApiError && e.status === 401)
+        setFlash({
+          kind: "warn",
+          msg: "Sign in again to save. Your draft is preserved.",
+        });
+      else setFlash({ kind: "err", msg: String(e) });
+    } finally {
+      setSaving(false);
     }
   };
-
-  const conflictActions = {
-    reloadExternal: async () => {
-      const d = await api.getDoc(canonicalPath);
-      setDoc(d);
-      setDraft(d.content);
-      setBaseHash(d.meta.contentHash);
-      setConflict(null);
-      setFlash({ kind: 'info', msg: 'Loaded external version' });
-    },
-    overwrite: async () => {
-      setConflict({ dismissEditor: true });
-      onSave();
-    },
+  const mutate = async (kind: "rating" | "favorite", v: any) => {
+    try {
+      const src = await api.getSource(canonicalPath);
+      const out =
+        kind === "rating"
+          ? await api.rate(canonicalPath, v, src.etag!)
+          : await api.setMeta(canonicalPath, { favorite: v }, src.etag!);
+      void out;
+      await loadPublic(canonicalPath, false);
+    } catch (e) {
+      setFlash({ kind: "err", msg: String(e) });
+    }
   };
-
-  const debounceAutoSave = (c: string) => {
-    setDraft(c);
-    if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      if (!conflict) onSave();
-    }, 1200);
+  const cancel = () => {
+    if (dirty) {
+      setConfirmCancel(true);
+      return;
+    }
+    setMode("read");
   };
-
-  // Read-mode body: title → collapsible metadata → article.
-  const readBody = stripFrontmatter(doc.content);
-  const { title, rest } = splitTitle(readBody);
-
+  const discard = () => {
+    setDraft(baseline);
+    setMode("read");
+    setConfirmCancel(false);
+    setTrigger(null);
+  };
+  const onInput = (value: string, cursor: number) => {
+    setDraft(value);
+    setTrigger(findAutocompleteTrigger(value, cursor));
+  };
+  const choose = (value: string) => {
+    if (!trigger) return;
+    const out = applyAutocomplete(draft, trigger, value);
+    setDraft(out.source);
+    setTrigger(null);
+    setSuggestions([]);
+    requestAnimationFrame(() => {
+      textRef.current?.focus();
+      textRef.current?.setSelectionRange(out.cursor, out.cursor);
+    });
+  };
+  const editor = (
+    <div className="editor-wrap">
+      <textarea
+        ref={textRef}
+        className={`editor-pane${mode === "edit" ? " full" : ""}`}
+        value={draft}
+        onChange={(e) => onInput(e.target.value, e.target.selectionStart)}
+        onClick={(e) =>
+          setTrigger(
+            findAutocompleteTrigger(draft, e.currentTarget.selectionStart),
+          )
+        }
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setTrigger(null);
+            setSuggestions([]);
+          }
+        }}
+      />
+      {trigger && suggestions.length > 0 && (
+        <div className="autocomplete-panel">
+          {suggestions.map((s) => (
+            <button
+              key={s.value}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                choose(s.value);
+              }}
+            >
+              <strong>
+                {trigger.kind === "tag" ? "#" : ""}
+                {s.value}
+              </strong>
+              <span>{s.detail}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  const readBody = stripFrontmatter(doc.content),
+    { title, rest } = splitTitle(readBody);
   return (
     <div className="doc-view">
       <div className="doc-toolbar">
@@ -197,197 +301,278 @@ export function DocView() {
         </div>
         <div className="toolbar-right">
           <div className="mode-toggle">
-            <button className={mode === 'read' ? 'active' : ''} onClick={() => setMode('read')}>
+            <button
+              className={mode === "read" ? "active" : ""}
+              onClick={() => (mode === "read" ? null : cancel())}
+            >
               Read
             </button>
-            <button
-              className={mode === 'split' ? 'active' : ''}
-              onClick={() => setMode(mode === 'split' ? 'read' : 'split')}
-            >
-              Split
-            </button>
-            <button className={mode === 'edit' ? 'active' : ''} onClick={() => setMode('edit')}>
-              Edit
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  className={mode === "split" ? "active" : ""}
+                  onClick={() => void enter("split")}
+                >
+                  Split
+                </button>
+                <button
+                  className={mode === "edit" ? "active" : ""}
+                  onClick={() => void enter("edit")}
+                >
+                  Edit
+                </button>
+              </>
+            )}
           </div>
-          <button onClick={onToggleFavorite}>{meta.favorite ? '★ Favorited' : '☆ Favorite'}</button>
-          {confirmDelete ? (
+          {canEdit && (
             <>
-              <button className="danger" onClick={onDelete}>Confirm delete</button>
-              <button onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button onClick={() => void mutate("favorite", !meta.favorite)}>
+                {meta.favorite ? "★ Favorited" : "☆ Favorite"}
+              </button>
+              {confirmDelete ? (
+                <>
+                  <button
+                    className="danger"
+                    onClick={async () => {
+                      const src = await api.getSource(canonicalPath);
+                      await api.deleteDoc(canonicalPath, src.etag!);
+                      navigate("/");
+                    }}
+                  >
+                    Confirm delete
+                  </button>
+                  <button onClick={() => setConfirmDelete(false)}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="danger"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Delete
+                </button>
+              )}
             </>
-          ) : (
-            <button className="danger" onClick={() => setConfirmDelete(true)}>Delete</button>
           )}
         </div>
       </div>
-
-      <div className="doc-rating-bar">
-        <span className="rating-label">Rate this page</span>
-        <RatingStars value={meta.rating} scale={5} onChange={onRating} size={22} />
-      </div>
-
-      {(mode === 'edit' || mode === 'split') && (
+      {canEdit && (
+        <div className="doc-rating-bar">
+          <span className="rating-label">Rate this page</span>
+          <RatingStars
+            value={meta.rating}
+            scale={5}
+            onChange={(v) => void mutate("rating", v)}
+            size={22}
+          />
+        </div>
+      )}
+      {mode !== "read" && (
         <div className="editor-bar">
-          <button className="primary" onClick={onSave} disabled={!!conflict}>
-            Save
+          <button
+            className="primary"
+            onClick={() => void onSave()}
+            disabled={saving || !dirty || !baseEtag || !!conflict}
+          >
+            {saving ? "Saving…" : "Save"}
           </button>
-          <button onClick={() => setMode('read')} disabled={!!conflict}>
+          <button onClick={cancel} disabled={saving}>
             Cancel
           </button>
-          {savedAt && <span className="saved-hint">Last saved {savedAt.toLocaleTimeString()}</span>}
+          {dirty && <span className="saved-hint">Unsaved changes</span>}
+          {savedAt && (
+            <span className="saved-hint">
+              Last saved {savedAt.toLocaleTimeString()}
+            </span>
+          )}
         </div>
       )}
-
+      {confirmCancel && (
+        <div className="confirm-panel">
+          Discard unsaved changes?
+          <button className="danger" onClick={discard}>
+            Discard
+          </button>
+          <button onClick={() => setConfirmCancel(false)}>Keep editing</button>
+        </div>
+      )}
       {flash && <div className={`flash flash-${flash.kind}`}>{flash.msg}</div>}
-      {conflict && conflict.remote && (
+      {conflict && (
         <div className="conflict-banner">
-          <strong>Conflict detected</strong> — this page changed externally while you were editing.
-          <button onClick={conflictActions.reloadExternal}>Load external version</button>
-          <button onClick={conflictActions.overwrite}>Overwrite with mine</button>
+          <strong>Conflict detected.</strong>
+          <button onClick={() => setConfirmExternal(true)}>
+            Load external version
+          </button>
+          <button
+            onClick={() =>
+              setFlash({
+                kind: "info",
+                msg: "Your draft remains in the editor; load the external version in another tab to review differences.",
+              })
+            }
+          >
+            Review differences
+          </button>
+          {confirmOverwrite ? (
+            <>
+              <button
+                className="danger"
+                disabled={saving}
+                onClick={async () => {
+                  const latest = await api.getSource(canonicalPath);
+                  await onSave(latest.etag!, true);
+                }}
+              >
+                Confirm overwrite with mine
+              </button>
+              <button onClick={() => setConfirmOverwrite(false)}>Cancel</button>
+            </>
+          ) : (
+            <button onClick={() => setConfirmOverwrite(true)}>
+              Overwrite with mine
+            </button>
+          )}
         </div>
       )}
-
-      <div className={`doc-body${mode === 'split' ? ' split' : ''}`}>
+      {confirmExternal && (
+        <div className="confirm-panel">
+          Discard your draft and load the external version?
+          <button
+            className="danger"
+            onClick={async () => {
+              await refreshAfter();
+              setConflict(null);
+              setConfirmExternal(false);
+            }}
+          >
+            Discard and load
+          </button>
+          <button onClick={() => setConfirmExternal(false)}>
+            Keep editing
+          </button>
+        </div>
+      )}
+      {mode !== "read" && reviews.length > 0 && (
+        <section className="card review-panel">
+          <h3>Agent staging</h3>
+          <p>
+            {reviews.filter((x) => x.type === "agent").length} instruction(s),{" "}
+            {reviews.filter((x) => x.type === "agent-review").length} review(s).
+            No model is executed by this site.
+          </p>
+          {reviews.map((b, i) => (
+            <div className="review-row" key={`${b.start}-${i}`}>
+              <code>
+                {b.type} {b.id ?? b.target ?? `@${b.start}`}
+              </code>
+              <button
+                onClick={() => {
+                  textRef.current?.focus();
+                  textRef.current?.setSelectionRange(b.start, b.end);
+                }}
+              >
+                Go to source
+              </button>
+              {b.type === "agent-review" && b.id && (
+                <>
+                  <button
+                    onClick={() => setDraft(acceptAgentReview(draft, b.id!))}
+                  >
+                    Accept into draft
+                  </button>
+                  <button className="danger" onClick={() => setRejectId(b.id!)}>
+                    Reject…
+                  </button>
+                  {rejectId === b.id && (
+                    <button
+                      className="danger"
+                      onClick={() => {
+                        setDraft(rejectAgentReview(draft, b.id!));
+                        setRejectId(null);
+                      }}
+                    >
+                      Confirm reject
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+      <div className={`doc-body${mode === "split" ? " split" : ""}`}>
         <div className="doc-main">
-          {mode === 'read' && (
+          {mode === "read" && (
             <article className="article">
               <h1 className="article-title">{title || meta.title}</h1>
               <details className="collapsible article-meta">
                 <summary>File info</summary>
-                <dl className="meta-list">
-                  <dt>Type</dt>
-                  <dd>{String(meta.frontmatter?.type ?? '—')}</dd>
-                  <dt>Status</dt>
-                  <dd>{meta.status ?? '—'}</dd>
-                  <dt>Aliases</dt>
-                  <dd>{meta.aliases?.length ? meta.aliases.join(', ') : '—'}</dd>
-                  <dt>Created</dt>
-                  <dd>{meta.created ?? fmtDate(meta.ctimeMs)}</dd>
-                  <dt>Modified</dt>
-                  <dd>{meta.updated ?? fmtDate(meta.mtimeMs)}</dd>
-                </dl>
-                {meta.tags.length > 0 && (
-                  <div className="meta-tags">
-                    {meta.tags.map((t) => (
-                      <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
-                        #{t}
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                <Meta meta={meta} />
               </details>
               <Markdown content={rest} baseFolder={meta.folder} />
             </article>
           )}
-          {mode === 'split' && (
+          {mode === "split" && (
             <>
-              <textarea
-                className="editor-pane"
-                value={draft}
-                onChange={(e) => debounceAutoSave(e.target.value)}
-              />
+              {editor}
               <div className="preview-pane">
                 <Markdown content={draft} baseFolder={meta.folder} />
               </div>
             </>
           )}
-          {mode === 'edit' && (
-            <textarea
-              className="editor-pane full"
-              value={draft}
-              onChange={(e) => debounceAutoSave(e.target.value)}
-            />
-          )}
+          {mode === "edit" && editor}
         </div>
-
         <aside className="doc-context">
           <section className="context-block">
             <h4>File info</h4>
-            <dl className="meta-list">
-              <dt>Type</dt>
-              <dd>{String(meta.frontmatter?.type ?? '—')}</dd>
-              <dt>Status</dt>
-              <dd>{meta.status ?? '—'}</dd>
-              <dt>Aliases</dt>
-              <dd>{meta.aliases?.length ? meta.aliases.join(', ') : '—'}</dd>
-              <dt>Path</dt>
-              <dd className="mono">{meta.relPath}</dd>
-              <dt>Created</dt>
-              <dd>{meta.created ?? fmtDate(meta.ctimeMs)}</dd>
-              <dt>Modified</dt>
-              <dd>{meta.updated ?? fmtDate(meta.mtimeMs)}</dd>
-              <dt>Words</dt>
-              <dd>{meta.wordCount}</dd>
-            </dl>
-            {meta.tags.length > 0 && (
-              <div className="meta-tags">
-                {meta.tags.map((t) => (
-                  <Link key={t} to={`/search?tag=${encodeURIComponent(t)}`} className="tag-chip">
-                    #{t}
-                  </Link>
-                ))}
-              </div>
-            )}
+            <Meta meta={meta} />
           </section>
-
-          {mode !== 'read' && (
-            <section className="context-block markdown-legend">
-              <h4>Markdown shortcuts</h4>
-              <ul className="legend-list">
-                <li><code>**bold**</code> · <code>*italic*</code></li>
-                <li><code>## heading</code></li>
-                <li><code>[[Page Name]]</code> link</li>
-                <li><code>#tag</code> inline tag</li>
-                <li><code>- [ ] task</code></li>
-                <li><code>&gt; [!note] Title</code> callout</li>
-                <li><code>`code`</code> inline code</li>
-              </ul>
-            </section>
-          )}
-
           <section className="context-block">
             <h4>Backlinks ({doc.backlinks.length})</h4>
-            {doc.backlinks.length === 0 ? (
-              <p className="muted">No pages link here.</p>
-            ) : (
-              <ul className="link-list">
-                {doc.backlinks.map((b) => (
-                  <li key={b.sourceRelPath}>
-                    <Link to={`/note/${encodeURIComponent(b.sourceRelPath)}`}>{b.sourceTitle}</Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="context-block">
-            <h4>Outgoing links ({doc.outgoing.length})</h4>
-            {doc.outgoing.length === 0 ? (
-              <p className="muted">No outgoing links.</p>
-            ) : (
-              <ul className="link-list">
-                {doc.outgoing.map((o, i) => (
-                  <li key={i} className={o.resolved ? '' : 'broken'}>
-                    {o.resolved ? (
-                      <Link to={`/note/${encodeURIComponent(o.targetRelPath!)}`}>
-                        {o.alias ?? o.target}
-                      </Link>
-                    ) : (
-                      <span title="Unresolved wiki link">[[{o.target}]]</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ul className="link-list">
+              {doc.backlinks.map((b) => (
+                <li key={b.sourceRelPath}>
+                  <Link to={`/note/${encodeURIComponent(b.sourceRelPath)}`}>
+                    {b.sourceTitle}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </section>
         </aside>
       </div>
     </div>
   );
 }
-
-function fmtDate(ms: number): string {
-  if (!ms) return '—';
-  return new Date(ms).toISOString().slice(0, 10);
+function Meta({ meta }: { meta: Document["meta"] }) {
+  return (
+    <>
+      <dl className="meta-list">
+        <dt>Status</dt>
+        <dd>{meta.status ?? "—"}</dd>
+        <dt>Path</dt>
+        <dd className="mono">{meta.relPath}</dd>
+        <dt>Modified</dt>
+        <dd>
+          {meta.updated ?? new Date(meta.mtimeMs).toISOString().slice(0, 10)}
+        </dd>
+        <dt>Words</dt>
+        <dd>{meta.wordCount}</dd>
+      </dl>
+      {meta.tags.length > 0 && (
+        <div className="meta-tags">
+          {meta.tags.map((t) => (
+            <Link
+              key={t}
+              to={`/search?tag=${encodeURIComponent(t)}`}
+              className="tag-chip"
+            >
+              #{t}
+            </Link>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }

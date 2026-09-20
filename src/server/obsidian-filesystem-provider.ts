@@ -8,18 +8,18 @@
  *    it compares a content hash against the expected hash the editor opened.
  *  - Attachments and non-markdown files are served read-only by default.
  */
-import fs, { type Stats } from 'node:fs';
-import fsp from 'node:fs/promises';
-import path from 'node:path';
-import crypto from 'node:crypto';
-import chokidar, { type FSWatcher } from 'chokidar';
+import fs, { type Stats } from "node:fs";
+import fsp from "node:fs/promises";
+import path from "node:path";
+import crypto from "node:crypto";
+import chokidar, { type FSWatcher } from "chokidar";
 import type {
   VaultProvider,
   VaultWatchEvent,
   SaveResult,
   MoveResult,
-} from './vault-provider.js';
-import type { DocMeta, VaultDocSummary } from '../shared/types.js';
+} from "./vault-provider.js";
+import type { DocMeta, VaultDocSummary } from "../shared/types.js";
 import {
   resolveInVault,
   toRelPath,
@@ -30,13 +30,21 @@ import {
   fileNameOf,
   UnsafePathError,
   isExcluded,
-} from '../shared/path-utils.js';
-import { parseFrontmatter, toStringArray, coerceRating } from '../shared/frontmatter.js';
-import { extractInlineTags, extractHeadings, parseWikiLinks } from '../shared/wiki.js';
-import { expandTilde } from '../shared/config.js';
+} from "../shared/path-utils.js";
+import {
+  parseFrontmatter,
+  toStringArray,
+  coerceRating,
+} from "../shared/frontmatter.js";
+import {
+  extractInlineTags,
+  extractHeadings,
+  parseWikiLinks,
+} from "../shared/wiki.js";
+import { expandTilde } from "../shared/config.js";
 
 export function sha256(content: string): string {
-  return crypto.createHash('sha256').update(content).digest('hex');
+  return crypto.createHash("sha256").update(content).digest("hex");
 }
 
 export interface ObsidianProviderOptions {
@@ -59,7 +67,11 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
   constructor(vaultRoot: string, opts: ObsidianProviderOptions = {}) {
     this.root = path.resolve(expandTilde(vaultRoot));
     this.name = path.basename(this.root) || this.root;
-    this.excludedFolders = opts.excludedFolders ?? ['.obsidian', '.git', '.trash'];
+    this.excludedFolders = opts.excludedFolders ?? [
+      ".obsidian",
+      ".git",
+      ".trash",
+    ];
     this.excludedFiles = opts.excludedFiles ?? [];
     this.ratingScale = opts.ratingScale ?? 5;
     this.watchEnabled = opts.watch ?? true;
@@ -97,9 +109,20 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
         const abs = path.join(dir, e.name);
         const rel = toRelPath(this.root, abs);
         if (e.isDirectory()) {
-          if (rel === '.obsidian' || rel === '.git' || this.excludedFolders.includes(rel)) continue;
+          if (
+            rel === ".obsidian" ||
+            rel === ".git" ||
+            this.excludedFolders.includes(rel)
+          )
+            continue;
           // Skip excluded folder prefixes.
-          if (this.excludedFolders.some((f) => rel.startsWith(normalizeRel(f) + '/') || rel === normalizeRel(f)))
+          if (
+            this.excludedFolders.some(
+              (f) =>
+                rel.startsWith(normalizeRel(f) + "/") ||
+                rel === normalizeRel(f),
+            )
+          )
             continue;
           await walk(abs);
         } else if (e.isFile() && isMarkdown(e.name)) {
@@ -117,7 +140,7 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
     const abs = this.ensureInside(relPath);
     try {
       const [content, stats] = await Promise.all([
-        fsp.readFile(abs, 'utf8'),
+        fsp.readFile(abs, "utf8"),
         fsp.stat(abs),
       ]);
       return buildMetaFromContent(relPath, content, this.ratingScale, stats);
@@ -130,15 +153,20 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
     return this.buildMeta(relPath);
   }
 
-  async readDocument(relPath: string): Promise<{ content: string; meta: DocMeta } | null> {
+  async readDocument(
+    relPath: string,
+  ): Promise<{ content: string; meta: DocMeta } | null> {
     const abs = this.ensureInside(relPath);
     if (!isMarkdown(relPath)) return null;
     try {
       const [content, stats] = await Promise.all([
-        fsp.readFile(abs, 'utf8'),
+        fsp.readFile(abs, "utf8"),
         fsp.stat(abs),
       ]);
-      return { content, meta: buildMetaFromContent(relPath, content, this.ratingScale, stats) };
+      return {
+        content,
+        meta: buildMetaFromContent(relPath, content, this.ratingScale, stats),
+      };
     } catch {
       return null;
     }
@@ -166,8 +194,14 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
         const abs = path.join(dir, e.name);
         const rel = toRelPath(this.root, abs);
         if (e.isDirectory()) {
-          if (rel === '.obsidian' || rel === '.git') continue;
-          if (this.excludedFolders.some((f) => rel.startsWith(normalizeRel(f) + '/') || rel === normalizeRel(f)))
+          if (rel === ".obsidian" || rel === ".git") continue;
+          if (
+            this.excludedFolders.some(
+              (f) =>
+                rel.startsWith(normalizeRel(f) + "/") ||
+                rel === normalizeRel(f),
+            )
+          )
             continue;
           await walk(abs);
         } else if (e.isFile()) {
@@ -185,7 +219,7 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
   async saveDocument(
     relPath: string,
     content: string,
-    opts: { expectedHash: string | null }
+    opts: { expectedHash: string | null },
   ): Promise<SaveResult> {
     this.assertWritablePath(relPath);
     const abs = this.ensureInside(relPath);
@@ -203,7 +237,7 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
             relPath,
             conflicted: true,
             conflict: {
-              version: 'external',
+              version: "external",
               expectedHash: opts.expectedHash,
               currentHash,
               currentMtimeMs: (await fsp.stat(abs)).mtimeMs,
@@ -214,7 +248,28 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
       }
     }
 
-    await this.writeAtomic(abs, content);
+    // Stage first, then re-check immediately before rename. External programs do
+    // not honor this process's path lock, so POSIX cannot provide a perfect
+    // cross-process compare-and-swap; this narrows the unavoidable race.
+    const finalConflict = await this.writeAtomicChecked(
+      abs,
+      content,
+      opts.expectedHash,
+    );
+    if (finalConflict) {
+      return {
+        ok: false,
+        relPath,
+        conflicted: true,
+        conflict: {
+          version: "external",
+          expectedHash: opts.expectedHash ?? "",
+          currentHash: finalConflict.currentHash,
+          currentMtimeMs: finalConflict.currentMtimeMs,
+        },
+        contentHash: finalConflict.currentHash,
+      };
+    }
     const hash = sha256(content);
     return { ok: true, relPath, contentHash: hash };
   }
@@ -223,7 +278,12 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
     this.assertWritablePath(relPath);
     const abs = this.ensureInside(relPath);
     if (await this.exists(relPath)) {
-      return { ok: false, relPath, conflicted: true, contentHash: sha256(content) };
+      return {
+        ok: false,
+        relPath,
+        conflicted: true,
+        contentHash: sha256(content),
+      };
     }
     await fsp.mkdir(path.dirname(abs), { recursive: true });
     await this.writeAtomic(abs, content, { createOnly: true });
@@ -233,13 +293,14 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
   async moveDocument(
     fromRelPath: string,
     toRelPath: string,
-    opts: { adjustLinks?: boolean } = {}
+    opts: { adjustLinks?: boolean } = {},
   ): Promise<MoveResult> {
     this.assertWritablePath(fromRelPath);
     this.assertWritablePath(toRelPath);
     const fromAbs = this.ensureInside(fromRelPath);
     const toAbs = this.ensureInside(toRelPath);
-    if (!(await this.exists(fromRelPath))) return { ok: false, fromRelPath, toRelPath };
+    if (!(await this.exists(fromRelPath)))
+      return { ok: false, fromRelPath, toRelPath };
     await fsp.mkdir(path.dirname(toAbs), { recursive: true });
     await fsp.rename(fromAbs, toAbs);
     void opts.adjustLinks;
@@ -257,14 +318,57 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
     }
   }
 
+  /** Temp-file + fsync + final target verification + atomic rename. */
+  private async writeAtomicChecked(
+    abs: string,
+    content: string,
+    expectedHash: string | null,
+  ) {
+    await fsp.mkdir(path.dirname(abs), { recursive: true });
+    const tmp = path.join(
+      path.dirname(abs),
+      `.${path.basename(abs)}.kv-tmp-${process.pid}-${Date.now()}`,
+    );
+    const fh = await fsp.open(tmp, "wx");
+    try {
+      await fh.writeFile(content, "utf8");
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
+    try {
+      if (expectedHash !== null) {
+        const [current, stats] = await Promise.all([
+          fsp.readFile(abs, "utf8"),
+          fsp.stat(abs),
+        ]);
+        const currentHash = sha256(current);
+        if (currentHash !== expectedHash) {
+          return { currentHash, currentMtimeMs: stats.mtimeMs };
+        }
+      }
+      await fsp.rename(tmp, abs);
+      return null;
+    } finally {
+      await fsp.rm(tmp, { force: true }).catch(() => {});
+    }
+  }
+
   /** Temp-file + fsync + atomic rename. createOnly prevents overwrite. */
-  private async writeAtomic(abs: string, content: string, opts: { createOnly?: boolean } = {}) {
+  private async writeAtomic(
+    abs: string,
+    content: string,
+    opts: { createOnly?: boolean } = {},
+  ) {
     await fsp.mkdir(path.dirname(abs), { recursive: true });
     const dir = path.dirname(abs);
-    const tmp = path.join(dir, `.${path.basename(abs)}.kv-tmp-${process.pid}-${Date.now()}`);
-    const fh = await fsp.open(tmp, opts.createOnly ? 'wx' : 'w');
+    const tmp = path.join(
+      dir,
+      `.${path.basename(abs)}.kv-tmp-${process.pid}-${Date.now()}`,
+    );
+    const fh = await fsp.open(tmp, opts.createOnly ? "wx" : "w");
     try {
-      await fh.writeFile(content, 'utf8');
+      await fh.writeFile(content, "utf8");
       await fh.sync();
     } finally {
       await fh.close();
@@ -321,18 +425,18 @@ export class ObsidianFileSystemVaultProvider implements VaultProvider {
       awaitWriteFinish: { stabilityThreshold: 250, pollInterval: 50 },
     };
     this.watcher = chokidar.watch(this.root, watchOpts);
-    const emit = (event: VaultWatchEvent['event'], what: string) => {
+    const emit = (event: VaultWatchEvent["event"], what: string) => {
       const rel = toRelPath(this.root, what);
       onEvent({ event, relPath: rel, absPath: what });
     };
-    this.watcher.on('add', (p: string) => emit('add', p));
-    this.watcher.on('change', (p: string) => emit('change', p));
-    this.watcher.on('unlink', (p: string) => emit('unlink', p));
-    this.watcher.on('addDir', (p: string) => {
-      if (toRelPath(this.root, p) === '') return;
-      emit('addDir', p);
+    this.watcher.on("add", (p: string) => emit("add", p));
+    this.watcher.on("change", (p: string) => emit("change", p));
+    this.watcher.on("unlink", (p: string) => emit("unlink", p));
+    this.watcher.on("addDir", (p: string) => {
+      if (toRelPath(this.root, p) === "") return;
+      emit("addDir", p);
     });
-    this.watcher.on('unlinkDir', (p: string) => emit('unlinkDir', p));
+    this.watcher.on("unlinkDir", (p: string) => emit("unlinkDir", p));
     const close = () => {
       if (this.watcher) void this.watcher.close();
       this.watcher = null;
@@ -357,16 +461,16 @@ export function buildMetaFromContent(
   relPath: string,
   content: string,
   ratingScale: number,
-  stats?: Pick<Stats, 'ctimeMs' | 'mtimeMs' | 'size'>
+  stats?: Pick<Stats, "ctimeMs" | "mtimeMs" | "size">,
 ): DocMeta {
   const fm = parseFrontmatter(content);
   const data = fm.data;
-  const updated = typeof data.updated === 'string' ? data.updated : undefined;
-  const created = typeof data.created === 'string' ? data.created : undefined;
+  const updated = typeof data.updated === "string" ? data.updated : undefined;
+  const created = typeof data.created === "string" ? data.created : undefined;
   const createdAt = created ? Date.parse(created) : Number.NaN;
   const updatedAt = updated ? Date.parse(updated) : Number.NaN;
   const title =
-    (typeof data.title === 'string' && data.title.trim()) ||
+    (typeof data.title === "string" && data.title.trim()) ||
     firstHeading(content) ||
     baseNameOf(relPath);
   const tags =
@@ -376,10 +480,15 @@ export function buildMetaFromContent(
   const aliases = toStringArray(data.aliases);
   // Filesystem times are authoritative for external edits; frontmatter dates
   // remain a deterministic fallback for parser-only callers and fixtures.
-  const ctimeMs = stats?.ctimeMs ?? (Number.isFinite(createdAt) ? createdAt : 0);
+  const ctimeMs =
+    stats?.ctimeMs ?? (Number.isFinite(createdAt) ? createdAt : 0);
   const mtimeMs =
     stats?.mtimeMs ??
-    (Number.isFinite(updatedAt) ? updatedAt : Number.isFinite(createdAt) ? createdAt : 0);
+    (Number.isFinite(updatedAt)
+      ? updatedAt
+      : Number.isFinite(createdAt)
+        ? createdAt
+        : 0);
   const words = content.split(/\s+/).filter(Boolean).length;
   return {
     relPath: normalizeRel(relPath),
@@ -391,8 +500,8 @@ export function buildMetaFromContent(
     tags: dedupe(tags),
     frontmatter: data,
     rating: coerceRating(data.rating, ratingScale),
-    favorite: data.favorite === true || data.favorite === 'true',
-    status: typeof data.status === 'string' ? data.status : undefined,
+    favorite: data.favorite === true || data.favorite === "true",
+    status: typeof data.status === "string" ? data.status : undefined,
     created: created,
     updated: updated,
     ctimeMs,

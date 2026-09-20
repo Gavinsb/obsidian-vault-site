@@ -23,7 +23,7 @@ export interface DocMeta {
   mtimeMs: number;
   size: number;
   wordCount: number;
-  /** md5-ish content hash (used for conflict detection). */
+  /** SHA-256 content hash (secondary conflict guard; HTTP clients use ETag). */
   contentHash: string;
   /** True when frontmatter already existed. */
   hasFrontmatter: boolean;
@@ -88,7 +88,7 @@ export interface IndexStats {
 
 export interface HealthIssue {
   kind: string;
-  severity: 'info' | 'warn' | 'critical';
+  severity: "info" | "warn" | "critical";
   description: string;
   relPath?: string;
 }
@@ -105,13 +105,17 @@ export interface VaultOverview {
 }
 
 /** Read-only, derived Knowledge Map scoring contract. All normalized values are 0..1. */
-export type KnowledgeScoreComponent = 'rating' | 'recency' | 'backlinks' | 'connectivity';
+export type KnowledgeScoreComponent =
+  | "rating"
+  | "recency"
+  | "backlinks"
+  | "connectivity";
 export type KnowledgeLens =
-  | 'important'
-  | 'neglected'
-  | 'central'
-  | 'emerging'
-  | 'suggested-exploration';
+  | "important"
+  | "neglected"
+  | "central"
+  | "emerging"
+  | "suggested-exploration";
 
 export type KnowledgeScoreComponents = Record<KnowledgeScoreComponent, number>;
 
@@ -126,7 +130,7 @@ export interface KnowledgeMapLensTerm {
   /** Additive share of the lens score; terms in each lens sum to 1. */
   weight: number;
   /** "high" rewards the normalized value; "low" rewards its inverse (1 - value). */
-  direction: 'high' | 'low';
+  direction: "high" | "low";
 }
 
 export interface KnowledgeMapLensDefinition {
@@ -167,7 +171,7 @@ export interface KnowledgeMapResponse {
   rankings: Record<KnowledgeLens, string[]>;
 }
 
-export type ChangeType = 'created' | 'modified' | 'deleted' | 'renamed';
+export type ChangeType = "created" | "modified" | "deleted" | "renamed";
 
 export interface ChangeEvent {
   type: ChangeType;
@@ -178,4 +182,4 @@ export interface ChangeEvent {
   title?: string;
 }
 
-export type Theme = 'dark' | 'light' | 'system';
+export type Theme = "dark" | "light" | "system";

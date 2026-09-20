@@ -55,17 +55,24 @@ npm run dev            # runs API (tsx watch) + Vite dev server together
 - API: `http://127.0.0.1:18790/api`
 - UI: `http://127.0.0.1:5173` (Vite proxies `/api` to the server)
 
-A `VAULT_PATH` must be set (see below). For a quick try against the bundled test vault:
+A `VAULT_PATH` and independent auth secrets must be set (see below). For a quick local try against the bundled test vault, generate throwaway values in your shell (never commit them):
 
 ```bash
-VAULT_PATH=tests/fixtures/test-vault npm run dev
+VAULT_PATH=tests/fixtures/test-vault \
+KV_AUTH_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+KV_SESSION_SECRET="$(openssl rand -base64 48)" \
+INITIAL_ADMIN_PASSWORD='choose-a-strong-bootstrap-password' npm run dev
 ```
+
+`INITIAL_ADMIN_PASSWORD` is needed only for first bootstrap. Remove it from persistent environment configuration after successful first login and restart; existing encrypted users are preserved.
 
 ## Production run
 
 ```bash
 npm run build          # compiles server (dist/) + bundles client (dist/client)
-VAULT_PATH=/path/to/vault npm start
+VAULT_PATH=/path/to/vault \
+KV_AUTH_ENCRYPTION_KEY='protected-32-byte-base64-or-64-hex-key' \
+KV_SESSION_SECRET='independent-protected-high-entropy-secret' npm start
 ```
 
 Open `http://127.0.0.1:18790/`. The server serves the built SPA when `dist/client` exists.
@@ -130,21 +137,22 @@ The same mechanism supports future metadata (`status`, `favorite`, `importance`,
 
 ## How editing works
 
-- **Read / Edit / Split** modes. Split shows the editor beside a live rendered preview.
-- Save goes through a **write-temp-file → validate → atomic rename** sequence.
-- Edits target the actual Markdown file; the index updates immediately after save.
-- Uns preserve unsupported Obsidian syntax — the app parses but never rewrites content it doesn’t understand.
+- Public users can browse; authenticated users get **Read / Edit / Split** modes.
+- Editing is manual-save only. Typing, waiting, or switching Edit/Split never writes.
+- Raw Markdown autocomplete supports `[[wikilinks]]` and `#tags` without reserializing source.
+- Save uses `ETag` / `If-Match`, then **write-temp-file → fsync → final validation → atomic rename**.
+- The server owns the UTC `updated` frontmatter value on every successful content/metadata save.
+- Unsupported Obsidian syntax is preserved; only explicit draft changes and the targeted `updated` line are written.
 
 ## How conflict handling works
 
-Every document carries a content hash. When you open a doc, the client remembers your baseline. On save the server compares the **current file hash** to that baseline:
+The authenticated source response carries a strong `ETag`. Every save supplies it in `If-Match`:
 
-- If unchanged → write succeeds.
-- If the file changed externally since you opened it → the server returns a **409 conflict**; the UI offers:
-  - **Load external version**
-  - **Compare / overwrite with mine** (explicit, after warning)
+- Missing precondition → `428 Precondition Required`.
+- Matching precondition → write succeeds and returns a new ETag.
+- External change → `412 Precondition Failed`; the draft remains available.
 
-External content is **never** silently overwritten. A forced save (explicit overwrite) is the only way past a conflict.
+The filesystem SHA-256 is retained as a secondary guard, including a final check immediately before atomic rename. Explicit overwrite first loads the newest ETag and asks for a second confirmation; omission of `If-Match` never overwrites.
 
 ## How indexing works
 
@@ -152,6 +160,11 @@ The index is an in-memory Map/Set store rebuilt from source: notes, a link‑tar
 
 ## Security considerations
 
+- Public reads remain open; every content, metadata, account, and operational mutation is session-gated. Admin routes enforce roles and protect the last active admin.
+- Users and stateful sessions live only in `data/auth.enc`, encrypted with AES-256-GCM and atomically replaced at mode `0600`. Passwords use bcrypt; encryption and session-signing secrets are independent.
+- Sessions use signed JWTs in `HttpOnly`, `SameSite=Lax` cookies, backed by revocable encrypted-store records. Password reset and deactivation revoke sessions.
+- Cookie-authenticated mutations validate `Origin`; non-loopback use requires HTTPS through `KV_PUBLIC_ORIGIN`. Configure only the known reverse proxy topology.
+- Agent instruction/review callouts are masked server-side from public document responses and derived indexes. Review Accept/Reject changes the draft only; this app never calls a model or executes prompt text.
 - **Path traversal is blocked**: every path is validated to stay inside the configured vault root (see `src/shared/path-utils.ts` + its tests).
 - Writes outside the vault, to excluded folders (`.obsidian`, …), or to non-Markdown files are rejected.
 - Rendered HTML is **sanitized** (DOMPurify).
@@ -186,7 +199,7 @@ npm test          # unit + integration (data integrity, conflicts, traversal, ra
 npm run qa        # boots the real server against a copy of the test vault and runs the full §34 delivery checklist
 ```
 
-`tests/fixtures/test-vault/` is a representative vault (wiki links, aliases, nested tags, frontmatter, ratings, images/attachments, broken links, orphans, nested folders). The QA pass verifies 25 checks end‑to‑end — including that **no app cache is written into the vault** and that the same build works against a **second vault**.
+`tests/fixtures/test-vault/` is a representative vault (wiki links, aliases, nested tags, frontmatter, ratings, images/attachments, broken links, orphans, nested folders). The QA pass verifies 27 checks end‑to‑end — including that **no app cache is written into the vault** and that the same build works against a **second vault**.
 
 ## Project structure
 

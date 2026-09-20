@@ -1,40 +1,49 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { api, type AppConfig, type VaultOverview } from './api';
-import { Sidebar, type NavItem } from './components/Sidebar';
-import { Dashboard } from './components/Dashboard';
-import { DocView } from './components/DocView';
-import { Search } from './components/Search';
-import { GraphView } from './components/GraphView';
-import { TagsView } from './components/TagsView';
-import { HealthView } from './components/HealthView';
-import { ChangedView } from './components/ChangedView';
-import { TimelineView } from './components/TimelineView';
-import { RecentView } from './components/RecentView';
-import { FavoritesView } from './components/FavoritesView';
-import { CommandPalette } from './components/CommandPalette';
-import { SyncBar } from './components/SyncBar';
-import { ThemeContext, useEffectiveTheme } from './theme';
-import { KnowledgeMapView } from './components/KnowledgeMapView';
+import { useEffect, useMemo, useState } from "react";
+import {
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+  Navigate,
+} from "react-router-dom";
+import { api, type AppConfig, type VaultOverview } from "./api";
+import { Sidebar, type NavItem } from "./components/Sidebar";
+import { Dashboard } from "./components/Dashboard";
+import { DocView } from "./components/DocView";
+import { Search } from "./components/Search";
+import { GraphView } from "./components/GraphView";
+import { TagsView } from "./components/TagsView";
+import { HealthView } from "./components/HealthView";
+import { ChangedView } from "./components/ChangedView";
+import { TimelineView } from "./components/TimelineView";
+import { RecentView } from "./components/RecentView";
+import { FavoritesView } from "./components/FavoritesView";
+import { CommandPalette } from "./components/CommandPalette";
+import { SyncBar } from "./components/SyncBar";
+import { ThemeContext, useEffectiveTheme } from "./theme";
+import { KnowledgeMapView } from "./components/KnowledgeMapView";
+import { LoginView, UserAdminView } from "./components/AuthViews";
+import { useAuth } from "./auth";
 
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [overview, setOverview] = useState<VaultOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('system');
+  const [theme, setTheme] = useState<"dark" | "light" | "system">("system");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const siteName = config?.siteName ?? 'Doug KX';
+  const siteName = config?.siteName ?? "Doug KX";
   const effectiveTheme = useEffectiveTheme(theme);
+  const { user } = useAuth();
 
   useEffect(() => {
     (async () => {
       try {
         const cfg = await api.config();
         setConfig(cfg);
-        setTheme((cfg.theme as 'dark' | 'light' | 'system') || 'system');
+        setTheme((cfg.theme as "dark" | "light" | "system") || "system");
       } catch (e) {
         setError(String(e));
       }
@@ -75,34 +84,37 @@ export function App() {
   // Global command palette shortcut.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((v) => !v);
       }
-      if (e.key === 'Escape') setPaletteOpen(false);
+      if (e.key === "Escape") setPaletteOpen(false);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const navItems: NavItem[] = useMemo(
     () => [
-      { label: 'Home', icon: 'home', to: '/' },
-      { label: 'Search', icon: 'search', to: '/search' },
-      { label: 'Recent', icon: 'clock', to: '/recent' },
-      { label: 'Changed', icon: 'history', to: '/changed' },
-      { label: 'Favorites', icon: 'star', to: '/favorites' },
-      { label: 'Highly Rated', icon: 'thumbs-up', to: '/rated' },
-      { label: 'Tags', icon: 'tag', to: '/tags' },
-      { label: 'Graph', icon: 'graph', to: '/graph' },
-      { label: 'Knowledge Map', icon: 'map', to: '/knowledge-map' },
-      { label: 'Orphans', icon: 'link-off', to: '/orphans' },
-      { label: 'Folders', icon: 'folder', to: '/folders' },
-      { label: 'Activity', icon: 'activity', to: '/timeline' },
-      { label: 'Health', icon: 'shield', to: '/health' },
-      { label: 'Settings', icon: 'settings', to: '/settings' },
+      { label: "Home", icon: "home", to: "/" },
+      { label: "Search", icon: "search", to: "/search" },
+      { label: "Recent", icon: "clock", to: "/recent" },
+      { label: "Changed", icon: "history", to: "/changed" },
+      { label: "Favorites", icon: "star", to: "/favorites" },
+      { label: "Highly Rated", icon: "thumbs-up", to: "/rated" },
+      { label: "Tags", icon: "tag", to: "/tags" },
+      { label: "Graph", icon: "graph", to: "/graph" },
+      { label: "Knowledge Map", icon: "map", to: "/knowledge-map" },
+      { label: "Orphans", icon: "link-off", to: "/orphans" },
+      { label: "Folders", icon: "folder", to: "/folders" },
+      { label: "Activity", icon: "activity", to: "/timeline" },
+      { label: "Health", icon: "shield", to: "/health" },
+      { label: "Settings", icon: "settings", to: "/settings" },
+      ...(user?.role === "admin"
+        ? [{ label: "Users", icon: "shield" as const, to: "/admin/users" }]
+        : []),
     ],
-    []
+    [user?.role],
   );
 
   if (error && !config) {
@@ -111,7 +123,8 @@ export function App() {
         <h2>Cannot start</h2>
         <p>{error}</p>
         <p>
-          Check <code>VAULT_PATH</code> / <code>config/default.json</code> and restart the server.
+          Check <code>VAULT_PATH</code> / <code>config/default.json</code> and
+          restart the server.
         </p>
       </div>
     );
@@ -125,16 +138,29 @@ export function App() {
           siteName={siteName}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
+          canCreate={!!user}
         />
-        {sidebarOpen && <div className="sidebar-scrim" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && (
+          <div
+            className="sidebar-scrim"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         <main className="app-main">
           <div className="mobile-topbar">
-            <button className="menu-btn" aria-label="Menu" onClick={() => setSidebarOpen(true)}>
+            <button
+              className="menu-btn"
+              aria-label="Menu"
+              onClick={() => setSidebarOpen(true)}
+            >
               ☰
             </button>
             <span className="mobile-title">{siteName}</span>
           </div>
           <SyncBar overview={overview} />
+          <div className="auth-strip">
+            <LoginView />
+          </div>
           <div className="app-content">
             <Routes>
               <Route path="/" element={<Dashboard siteName={siteName} />} />
@@ -150,9 +176,16 @@ export function App() {
               <Route path="/knowledge-map" element={<KnowledgeMapView />} />
               <Route path="/timeline" element={<TimelineView />} />
               <Route path="/health" element={<HealthView />} />
-              <Route path="/settings" element={<SettingsView config={config} />} />
+              <Route
+                path="/settings"
+                element={<SettingsView config={config} />}
+              />
+              <Route path="/admin/users" element={<UserAdminView />} />
               <Route path="/note" element={<Navigate to="/" replace />} />
-              <Route path="/note/:path*" element={<DocView key={location.pathname} />} />
+              <Route
+                path="/note/:path*"
+                element={<DocView key={location.pathname} />}
+              />
             </Routes>
           </div>
         </main>
@@ -167,4 +200,9 @@ export function App() {
   );
 }
 
-import { HighlyRated, FolderView, OrphansView, SettingsView } from './components/Extras';
+import {
+  HighlyRated,
+  FolderView,
+  OrphansView,
+  SettingsView,
+} from "./components/Extras";

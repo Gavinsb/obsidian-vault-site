@@ -10,11 +10,24 @@ as e.g. `S4-3`.
 
 ---
 
-## S4 — current sprint
+## S4 — complete ✅
 
-- **Status:** collecting (open)
+- **Status:** complete — implemented, verified, deployed, committed, and pushed
 - **Opened:** 2026-09-19
-- **Items:** awaiting first item
+- **Completed:** 2026-09-20
+- **Verification:** lint passed; Vitest 89/89 (14 files); production build passed (1607 modules); safe-fixture QA 27/27; `git diff --check` passed; live local/HTTPS API security checks and headless-browser UI smoke tests passed
+- **Deployment:** `kv-microsite.service` is active/enabled on loopback with an HTTPS cloudflared tunnel; auth/session secrets and encrypted auth state are mode `0600`, outside the vault, and excluded from Git; initial admin bootstrap and read-only authenticated acceptance passed
+- **Detailed plan:** [`docs/sprint-S4-plan.md`](sprint-S4-plan.md)
+- **Decisions:** S4-5 = textarea + autocomplete (no WYSIWYG); S4-3 = AES-256-GCM encrypted file-only user/session store (no SQLite); S4-6 = site does syntax/mask/stage only, OpenClaw runs AI externally.
+- **Security/integrity:** public read projections remain open and mask agent blocks; every mutation is authenticated (admin-gated where applicable); signed HTTP-only/SameSite/Secure sessions are stateful/revocable; writes require ETag/If-Match and inject server-owned UTC `updated`; live acceptance did not mutate real vault notes.
+- **Known follow-up:** production audit reports two moderate React Router advisories whose available fix requires a major-version migration; this was not silently forced into S4.
+- **Items (6):**
+  1. Edit mode: no auto-save; save only on "Save" click; update `updated` date on save
+  2. Tag cloud redesign + right-side tag list with counts, sortable by count + alphabetical
+  3. Authenticated editing & access control (public read, session-gated writes, admin + multi-user)
+  4. Atomic metadata management & concurrency control (ETag/If-Match optimistic locking)
+  5. Existing raw Markdown editor + live vault autocomplete for `[[wikilinks]]` / `#tags` (no WYSIWYG in S4)
+  6. Embedded AI instruction support (`> [!agent]` syntax, public masking, review staging); AI execution remains external in OpenClaw
 
 ---
 

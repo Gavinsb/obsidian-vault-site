@@ -6,9 +6,14 @@
  * vaults, plugged-in sync, databases) can be added later without touching the
  * UI or the API layer (§29).
  */
-import type { DocMeta, VaultDocSummary } from '../shared/types.js';
+import type { DocMeta, VaultDocSummary } from "../shared/types.js";
 
-export type WatchEventName = 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
+export type WatchEventName =
+  | "add"
+  | "change"
+  | "unlink"
+  | "addDir"
+  | "unlinkDir";
 
 export interface VaultWatchEvent {
   event: WatchEventName;
@@ -27,7 +32,7 @@ export interface SaveResult {
 }
 
 export interface ConflictInfo {
-  version: 'external';
+  version: "external";
   /** Hash the client based its edit on (now stale). */
   expectedHash: string;
   /** Hash of the file on disk when the write arrived. */
@@ -48,24 +53,30 @@ export interface VaultProvider {
   readonly name: string;
 
   listDocuments(): Promise<VaultDocSummary[]>;
-  readDocument(relPath: string): Promise<{ content: string; meta: DocMeta } | null>;
+  readDocument(
+    relPath: string,
+  ): Promise<{ content: string; meta: DocMeta } | null>;
   /** Read raw bytes (for attachments / non-markdown files). */
   readRaw(relPath: string): Promise<Buffer | null>;
   getMeta(relPath: string): Promise<DocMeta | null>;
 
   /**
-   * Atomic safe write. `expectedHash` is the hash the editor started from.
-   * When it differs from the file on disk, a conflict is returned instead of
-   * overwriting. Pass expectedHash=null to force-overwrite.
+   * Atomic safe write. `expectedHash` is the SHA-256 secondary guard captured
+   * with the HTTP ETag. When it differs from disk, a conflict is returned.
+   * Passing null is reserved for a separately authorized explicit overwrite.
    */
   saveDocument(
     relPath: string,
     content: string,
-    opts: { expectedHash: string | null }
+    opts: { expectedHash: string | null },
   ): Promise<SaveResult>;
 
   createDocument(relPath: string, content: string): Promise<SaveResult>;
-  moveDocument(fromRelPath: string, toRelPath: string, opts?: { adjustLinks?: boolean }): Promise<MoveResult>;
+  moveDocument(
+    fromRelPath: string,
+    toRelPath: string,
+    opts?: { adjustLinks?: boolean },
+  ): Promise<MoveResult>;
   deleteDocument(relPath: string): Promise<{ ok: boolean }>;
   exists(relPath: string): Promise<boolean>;
 
