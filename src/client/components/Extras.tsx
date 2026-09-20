@@ -4,6 +4,7 @@ import { api, type VaultDocSummary, type AppConfig } from "../api";
 import { RatingStars } from "./RatingStars";
 import { useTheme } from "../theme";
 import { useAuth } from "../auth";
+import { LoginView } from "./AuthViews";
 
 export function HighlyRated() {
   const [docs, setDocs] = useState<VaultDocSummary[]>([]);
@@ -192,6 +193,10 @@ export function SettingsView({ config }: { config: AppConfig | null }) {
   return (
     <div className="view">
       <h1>Settings</h1>
+      <section className="card">
+        <h3>Account</h3>
+        <LoginView />
+      </section>
       <section className="card">
         <h3>Vault</h3>
         <dl className="meta-list">

@@ -22,7 +22,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { SyncBar } from "./components/SyncBar";
 import { ThemeContext, useEffectiveTheme } from "./theme";
 import { KnowledgeMapView } from "./components/KnowledgeMapView";
-import { LoginView, UserAdminView } from "./components/AuthViews";
+import { UserAdminView } from "./components/AuthViews";
 import { useAuth } from "./auth";
 
 export function App() {
@@ -158,9 +158,6 @@ export function App() {
             <span className="mobile-title">{siteName}</span>
           </div>
           <SyncBar overview={overview} />
-          <div className="auth-strip">
-            <LoginView />
-          </div>
           <div className="app-content">
             <Routes>
               <Route path="/" element={<Dashboard siteName={siteName} />} />

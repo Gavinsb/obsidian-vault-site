@@ -8,7 +8,7 @@ export function LoginView() {
   const [error, setError] = useState("");
   if (user)
     return (
-      <div className="card auth-card">
+      <div className="auth-card">
         <strong>{user.username}</strong>
         <span className="muted">({user.role})</span>
         <button onClick={() => void logout()}>Sign out</button>
@@ -16,7 +16,7 @@ export function LoginView() {
     );
   return (
     <form
-      className="card auth-card"
+      className="auth-card"
       onSubmit={async (e) => {
         e.preventDefault();
         setError("");
@@ -28,7 +28,7 @@ export function LoginView() {
         }
       }}
     >
-      <h3>Sign in to edit</h3>
+      <strong>Sign in to edit</strong>
       <input
         aria-label="Username"
         value={name}

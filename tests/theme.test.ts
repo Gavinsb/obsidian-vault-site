@@ -9,7 +9,7 @@ const styles = fs.readFileSync(
 describe("theme tokens", () => {
   it("defines light-theme button colours instead of inheriting dark tokens", () => {
     const lightTheme = styles.match(
-      /html\[data-theme='light'\]\s*\{([\s\S]*?)\}/,
+      /html\[data-theme=["']light["']\]\s*\{([\s\S]*?)\}/,
     )?.[1];
 
     expect(lightTheme).toBeTruthy();

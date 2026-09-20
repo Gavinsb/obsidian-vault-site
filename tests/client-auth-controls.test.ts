@@ -13,6 +13,10 @@ const settings = fs.readFileSync(
   new URL("../src/client/components/Extras.tsx", import.meta.url),
   "utf8",
 );
+const syncBar = fs.readFileSync(
+  new URL("../src/client/components/SyncBar.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("authenticated mutation controls", () => {
   it("hides new-note controls from public users", () => {
@@ -25,5 +29,12 @@ describe("authenticated mutation controls", () => {
     expect(settings).toContain(
       "Administrator sign-in is required to re-index.",
     );
+  });
+
+  it("keeps login in Settings and shows authenticated users in the header", () => {
+    expect(app).not.toContain('className="auth-strip"');
+    expect(settings).toContain("<LoginView />");
+    expect(syncBar).toContain('className="header-user"');
+    expect(syncBar).toContain("Signed in as ${user.username}");
   });
 });
