@@ -14,8 +14,9 @@ as e.g. `S4-3`.
 
 - **Status:** collecting items — no planning or implementation authorized
 - **Opened:** 2026-09-20
-- **Items (1):**
+- **Items (2):**
   1. **S5-1 — Fix `invalid_if_match` mutation failures:** saving an edited file currently returns `Error: invalid_if_match`; the same error occurs when rating a note. Restore successful explicit saves and ratings while preserving ETag/`If-Match` concurrency protection and stale-write rejection.
+  2. **S5-2 — Add an “Editing help” box to note view:** place it in the right-hand context column between **File info** and **Backlinks**. It must document all Markdown commands supported by the editor, every editor autocomplete feature and how to trigger/use it, plus how to insert a new `> [!agent]` block and a clear explanation of how agent instruction, public masking, review staging, and external OpenClaw execution work. The purpose is an in-product reference for understanding all available editing features.
 
 ---
 
