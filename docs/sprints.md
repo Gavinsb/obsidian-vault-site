@@ -15,6 +15,7 @@ as e.g. `S4-3`.
 - **Status:** complete — implemented, verified, deployed, committed, and pushed
 - **Opened:** 2026-09-19
 - **Completed:** 2026-09-20
+- **Implementation commit:** `0cdfceb` — "Complete Sprint S4 secure editing and auth"
 - **Verification:** lint passed; Vitest 89/89 (14 files); production build passed (1607 modules); safe-fixture QA 27/27; `git diff --check` passed; live local/HTTPS API security checks and headless-browser UI smoke tests passed
 - **Deployment:** `kv-microsite.service` is active/enabled on loopback with an HTTPS cloudflared tunnel; auth/session secrets and encrypted auth state are mode `0600`, outside the vault, and excluded from Git; initial admin bootstrap and read-only authenticated acceptance passed
 - **Detailed plan:** [`docs/sprint-S4-plan.md`](sprint-S4-plan.md)
