@@ -10,16 +10,19 @@ as e.g. `S4-3`.
 
 ---
 
-## S5 — planned (awaiting build authorization)
+## S5 — complete ✅
 
-- **Status:** plan finalized — awaiting explicit `start build`; no implementation authorized
+- **Status:** complete — implemented, verified, deployed, committed, and pushed
 - **Opened:** 2026-09-20
-- **Planning finalized:** 2026-09-20
+- **Completed:** 2026-09-20
+- **Implementation commit:** `a85680f` — "Complete Sprint S5: ETag mutation fix and editing help"
+- **Verification:** lint passed; Vitest 97/97 (16 files); production build passed (1608 modules); safe-fixture QA 27/27; `git diff --check` passed; live mutation matrix PASS through HTTPS tunnel
+- **Deployment:** `kv-microsite.service` is active/enabled on loopback with an HTTPS cloudflared tunnel; live acceptance verified strong, weak `W/`, and unquoted ETag variants for saves and ratings
 - **Detailed plan:** [`docs/sprint-S5-plan.md`](sprint-S5-plan.md)
-- **Decisions:** Editing help is visible to signed-in editors only and collapsed by default.
+- **Decisions:** S5-1 = normalize proxy/browser ETag variants while preserving concurrency contract; S5-2 = editors-only, collapsed-by-default help between File info and Backlinks.
 - **Items (2):**
-  1. **S5-1 — Fix `invalid_if_match` mutation failures:** saving an edited file currently returns `Error: invalid_if_match`; the same error occurs when rating a note. Restore successful explicit saves and ratings while preserving ETag/`If-Match` concurrency protection and stale-write rejection.
-  2. **S5-2 — Add an “Editing help” box to note view:** place it in the right-hand context column between **File info** and **Backlinks**. It must document all Markdown commands supported by the editor, every editor autocomplete feature and how to trigger/use it, plus how to insert a new `> [!agent]` block and a clear explanation of how agent instruction, public masking, review staging, and external OpenClaw execution work. The purpose is an in-product reference for understanding all available editing features.
+  1. **S5-1 — Fix `invalid_if_match` mutation failures:** `parseIfMatch` now accepts strong quoted, proxy-weak `W/`, unquoted, and re-quoted forms; canonicalizes to lowercase strong token; malformed/wildcard/multi/internal-quote rejected (400); missing precondition stays 428; stale well-formed stays 412; matching writes atomically with fresh ETag. Protected source adds `no-transform`. Client 400/428 errors show friendly retry message and preserve draft.
+  2. **S5-2 — Add an "Editing help" box to note view:** `EditingHelp.tsx` rendered in right context column between File info and Backlinks for signed-in editors, collapsed by default. Documents core Markdown, Obsidian wikilinks/aliases/embeds/callouts/tags, `[[`/`#` autocomplete triggers and code suppression, copyable `> [!agent] TARGET: document` template, public masking, external OpenClaw execution, review Accept/Reject draft-only staging, safety, saving, and conflict behavior.
 
 ---
 

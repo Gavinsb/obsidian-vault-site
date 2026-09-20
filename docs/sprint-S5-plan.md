@@ -1,8 +1,9 @@
 # Sprint S5 Implementation Plan
 
-**Status:** Implementation complete and deployed; final live acceptance in progress — Git completion remains
+**Status:** Implementation complete, deployed, and committed as `a85680f`
 **Sprint:** S5
 **Created:** 2026-09-20
+**Released:** 2026-09-20
 **Repository:** `Gavinsb/obsidian-vault-site`
 
 ## Scope
