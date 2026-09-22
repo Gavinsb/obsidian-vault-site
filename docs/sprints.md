@@ -10,15 +10,18 @@ as e.g. `S4-3`.
 
 ---
 
-## S6 — building (implementation in progress)
+## S6 — complete ✅
 
-- **Status:** build authorized — implementation, verification, and deployment in progress
+- **Status:** complete — implemented, verified, deployed, committed, and pushed
 - **Opened:** 2026-09-22
-- **Planning finalized:** 2026-09-22
+- **Completed:** 2026-09-22
+- **Implementation commit:** `ea26eed` — "Complete Sprint S6: agent blocks in read-only view with toggle"
+- **Verification:** lint passed; Vitest 112/112 (18 files); production build passed (1609 modules); safe-fixture QA 27/27; `git diff --check` passed; live anonymous checks confirm public masking holds on both default and `?agents=1` projections through the HTTPS tunnel
+- **Deployment:** `kv-microsite.service` active/enabled (user systemd); local `127.0.0.1:18790` and external tunnel return `200`
 - **Detailed plan:** [`docs/sprint-S6-plan.md`](sprint-S6-plan.md)
-- **Decisions:** signed-in-only unmasked read variant (`?agents=1`, `private, no-store` vs public masking unchanged); segment-render agent blocks as blueprint cards instead of feeding them through the markdown pipeline; start/end pairs by matching `ID:` metadata with bracket line + hover shading; palette via new CSS tokens for dark and light; toggle remembers last choice in `localStorage` (`kv.agentBlocksView`), default off; both `agent` and `agent-review` blocks shown.
+- **Decisions:** S6-1 = signed-in-only `?agents=1` read variant (public masking unchanged); blueprint cards segmented out of the markdown pipeline; start/end pairs by matching `ID:` metadata; CSS tokens for dark + light; toggle remembers last choice (`kv.agentBlocksView`), default off.
 - **Items (1):**
-  1. **S6-1 — Show agent blocks in read-only view (signed-in):** when logged in, render agent instruction/review blocks in the read-only article view instead of stripping them; add a toggle button to show/hide this view. Blocks get a "blueprint" aesthetic: light desaturated background (amber/lavender/gray) with dashed/dotted border, high-contrast pill badge (`Admin Instruction` / `ID: #…`), monospace for technical details. Encapsulated start/end pairs share a matching color-coded ID tag (e.g. emerald green), a vertical dashed "bracket" margin line spanning from start-block bottom to end-block top, and hover shading that tints the entire encapsulated section. Color scheme must adapt to the selected light/dark theme.
+  1. **S6-1 — Show agent blocks in read-only view (signed-in):** signed-in readers get a toolbar toggle (default off, persisted) that switches the read view to the unmasked projection (`?agents=1`, `Cache-Control: private, no-store, no-transform`, `Vary: Cookie`). Agent/agent-review blocks render as blueprint cards (dashed border, light desaturated background, `Admin Instruction` / `ID: #…` pill badge, monospace details) via new `AgentBlocksView` + `segmentBodyByAgentBlocks`; blocks sharing an `ID:` pair as start/end with color-coded emerald tags, a dashed bracket margin line around the encapsulated section, and hover shading over it. Palette adapts to dark/light via new CSS tokens. Accept/Reject staging remains draft-only; no mutation capabilities added to the read view.
 
 ---
 
