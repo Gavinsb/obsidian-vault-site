@@ -15,6 +15,7 @@
 - **2026-09-22 — Gates green.** `npm run lint`; Vitest 112/112 across 18 files (new: `tests/admin-read-view.test.ts`, `tests/s6-agent-read.test.ts`, expanded `tests/agent-blocks.test.ts`); production build (1609 modules); fixture QA 27/27; `git diff --check`.
 - **2026-09-22 — Deployed.** `kv-microsite.service` restarted (user systemd, active), local `127.0.0.1:18790` returns 200, external tunnel `https://items-lakes-dream-keyboards.trycloudflare.com` returns 200; anonymous live checks against `Social Proof.md` confirm masking holds on both the default and `?agents=1` projections.
 - **2026-09-22 — Minor follow-up.** Agent-block cards now show their `STATUS:` metadata as a pill on the top right of the block (`admin-status`, pushed right via `margin-left: auto` in `.admin-block-head`). Lint clean; Vitest 113/113; build passed; QA 27/27; deployed and verified after restart.
+- **2026-09-22 — Reviewable content in agent cards.** `AdminBlockCard` content now renders through the normal `<Markdown>` pipeline (with `baseFolder` passed through) instead of raw `pre-wrap` text, so proposed images (e.g. `![…](../../Attachments/…svg)`) display inline, embeds/wikilinks and standard links are clickable, and bold/headers/lists in review blocks render correctly. `.admin-block-content` switched to normal flow with constrained `.embed-image` (max-height 420px). Verified live: staged `Social Proof Infographic.svg` serves `200 image/svg+xml` via `/api/raw/`. Lint clean; Vitest 114/114; build passed; QA 27/27.
 
 ## Scope
 

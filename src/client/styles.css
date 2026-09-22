@@ -300,9 +300,19 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 }
 .admin-block-content {
   margin-top: 8px;
-  white-space: pre-wrap;
-  color: var(--text-dim);
+  color: var(--text);
 }
+.admin-block-content .markdown-body {
+  max-width: none;
+  font-size: 14px;
+}
+.admin-block-content .markdown-body .embed-image {
+  max-width: 100%;
+  max-height: 420px;
+  border: 1px solid var(--agent-block-border);
+  background: var(--bg-card);
+}
+.admin-block-content .markdown-body a { text-decoration: underline; }
 .agent-pair { position: relative; }
 .agent-pair .admin-instruction-block.start-block,
 .agent-pair .admin-instruction-block.end-block {

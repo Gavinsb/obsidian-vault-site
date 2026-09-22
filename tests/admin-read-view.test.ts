@@ -59,6 +59,15 @@ describe("S6-1 agent blocks in read-only view", () => {
     expect(styles).toContain("margin-left: auto");
   });
 
+  it("renders block content through Markdown so images and links are reviewable", () => {
+    expect(agentBlocksView).toContain("<Markdown content={block.content}");
+    expect(agentBlocksView).toContain("baseFolder");
+    expect(styles).toContain(".admin-block-content .markdown-body");
+    expect(styles).toContain(".admin-block-content .markdown-body .embed-image");
+    // Raw pre-wrap text rendering was removed so rendered HTML flows normally.
+    expect(styles).not.toMatch(/admin-block-content[^}]*white-space:\s*pre-wrap/);
+  });
+
   it("defines theme-adaptable palette tokens for dark and light themes", () => {
     expect(styles).toMatch(/--agent-block-bg:/);
     expect(styles).toMatch(/--agent-block-border:/);

@@ -38,16 +38,16 @@ function Segment({
 }) {
   if (seg.kind === "text") return <Markdown content={seg.text} baseFolder={baseFolder} />;
   if (seg.kind === "agent")
-    return <AdminBlockCard block={seg.block} role="standalone" />;
+    return <AdminBlockCard block={seg.block} role="standalone" baseFolder={baseFolder} />;
   return (
     <div className="agent-pair" data-pair-id={seg.id}>
-      <AdminBlockCard block={seg.start} role="start" />
+      <AdminBlockCard block={seg.start} role="start" baseFolder={baseFolder} />
       <div className="encapsulated" data-linked-to={seg.id}>
         {seg.inner.map((s, i) => (
           <Segment key={i} seg={s} baseFolder={baseFolder} />
         ))}
       </div>
-      <AdminBlockCard block={seg.end} role="end" />
+      <AdminBlockCard block={seg.end} role="end" baseFolder={baseFolder} />
     </div>
   );
 }
@@ -55,9 +55,11 @@ function Segment({
 function AdminBlockCard({
   block,
   role,
+  baseFolder,
 }: {
   block: AgentBlock;
   role: "start" | "end" | "standalone";
+  baseFolder?: string;
 }) {
   const label =
     block.type === "agent" ? "Admin Instruction" : "Agent Review";
@@ -81,7 +83,11 @@ function AdminBlockCard({
         {status && <span className="admin-status mono">{status}</span>}
       </div>
       {block.content && (
-        <div className="admin-block-content">{block.content}</div>
+        <div className="admin-block-content">
+          {/* Run through the normal pipeline so proposed images render
+              inline and links are clickable for review. */}
+          <Markdown content={block.content} baseFolder={baseFolder} />
+        </div>
       )}
     </div>
   );
