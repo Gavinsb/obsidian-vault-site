@@ -10,6 +10,15 @@ as e.g. `S4-3`.
 
 ---
 
+## S6 — collecting (open)
+
+- **Status:** collecting items — no planning or implementation authorized
+- **Opened:** 2026-09-22
+- **Items (1):**
+  1. **S6-1 — Show agent blocks in read-only view (signed-in):** when logged in, render agent instruction/review blocks in the read-only article view instead of stripping them; add a toggle button to show/hide this view. Blocks get a "blueprint" aesthetic: light desaturated background (amber/lavender/gray) with dashed/dotted border, high-contrast pill badge (`Admin Instruction` / `ID: #…`), monospace for technical details. Encapsulated start/end pairs share a matching color-coded ID tag (e.g. emerald green), a vertical dashed "bracket" margin line spanning from start-block bottom to end-block top, and hover shading that tints the entire encapsulated section. Color scheme must adapt to the selected light/dark theme.
+
+---
+
 ## S5 — complete ✅
 
 - **Status:** complete — implemented, verified, deployed, committed, and pushed
