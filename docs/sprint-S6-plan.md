@@ -1,9 +1,19 @@
 # Sprint S6 Implementation Plan
 
-**Status:** plan finalized — awaiting explicit `start build`; no implementation authorized
+**Status:** plan finalized — implementation authorized (`start build` received 2026-09-22), in progress
 **Sprint:** S6
 **Created:** 2026-09-22
 **Repository:** `Gavinsb/obsidian-vault-site`
+
+## Execution log
+
+- **2026-09-22 — Build authorized.** Gav explicitly said `start build`.
+- **2026-09-22 — Wave 1 done.** `segmentBodyByAgentBlocks` added to `src/shared/agent-blocks.ts`; returns text/agent/pair segments, pairs start/end blocks by matching `ID:` metadata (first = start, last = end), nests pairs, keeps fenced examples as literal text, flushes unclosed starts as standalone cards. Unit tests 11/11.
+- **2026-09-22 — Wave 2 done.** `GET /api/docs/*` accepts `?agents=1`: signed-in readers get the unmasked projection with `Cache-Control: private, no-store, no-transform` + `Vary: Cookie`; anonymous and default reads stay `public, max-age=30` with masking intact. Integration tests 4/4 (anonymous masked + public cache; signed-in unmasked + private cache; default signed-in read still masked; `/raw` and `/source` still gated).
+- **2026-09-22 — Wave 3 done.** `api.getDocAgents()` client method; `AgentBlocksView.tsx` renders segments (Markdown for text, blueprint cards for blocks, `.agent-pair` + `.encapsulated` for pairs); doc toolbar gains a signed-in-only toggle (persists `kv.agentBlocksView` in localStorage, default off) that switches the read fetch and polling to the unmasked projection.
+- **2026-09-22 — Wave 4 done.** New tokens `--agent-block-*`, `--agent-badge-*`, `--agent-pair-*`, `--agent-hover-tint`, `--font-mono` defined for both `:root` (dark) and `html[data-theme='light']`; card/badge/bracket/hover rules with a mobile fallback.
+- **2026-09-22 — Gates green.** `npm run lint`; Vitest 112/112 across 18 files (new: `tests/admin-read-view.test.ts`, `tests/s6-agent-read.test.ts`, expanded `tests/agent-blocks.test.ts`); production build (1609 modules); fixture QA 27/27; `git diff --check`.
+- **2026-09-22 — Deployed.** `kv-microsite.service` restarted (user systemd, active), local `127.0.0.1:18790` returns 200, external tunnel `https://items-lakes-dream-keyboards.trycloudflare.com` returns 200; anonymous live checks against `Social Proof.md` confirm masking holds on both the default and `?agents=1` projections.
 
 ## Scope
 

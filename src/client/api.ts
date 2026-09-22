@@ -135,6 +135,8 @@ export const api = {
     }),
   docs: () => req<VaultDocSummary[]>("/api/docs"),
   getDoc: (p: string) => req<Document>(`/api/docs/${encodeURIComponent(p)}`),
+  getDocAgents: (p: string) =>
+    req<Document>(`/api/docs/${encodeURIComponent(p)}?agents=1`),
   getSource: (p: string) =>
     response<Document>(`/api/docs/${encodeURIComponent(p)}/source`),
   saveDoc: (p: string, content: string, etag: string) =>

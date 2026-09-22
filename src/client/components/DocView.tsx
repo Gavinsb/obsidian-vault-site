@@ -11,12 +11,12 @@ import {
   parseAgentBlocks,
   rejectAgentReview,
 } from "../../shared/agent-blocks";
-import {
-  applyAutocomplete,
+import { applyAutocomplete,
   findAutocompleteTrigger,
   type AutocompleteTrigger,
 } from "../../shared/editor-utils";
 import { EditingHelp } from "./EditingHelp";
+import { AgentBlocksView } from "./AgentBlocksView";
 type Mode = "read" | "edit" | "split";
 
 export function DocView() {
@@ -43,6 +43,13 @@ export function DocView() {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [trigger, setTrigger] = useState<AutocompleteTrigger | null>(null);
+  const [agentsOn, setAgentsOn] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("kv.agentBlocksView") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [suggestions, setSuggestions] = useState<
     Array<{ value: string; detail: string }>
   >([]);
@@ -53,11 +60,13 @@ export function DocView() {
   const dirty = draft !== baseline;
   const reviews = parseAgentBlocks(draft);
   const canEdit = !!user;
-  const loadPublic = async (p: string, spin = true) => {
+  const loadPublic = async (p: string, spin = true, wantAgents = agentsOn) => {
     if (spin) setLoading(true);
     setError(null);
     try {
-      const d = await api.getDoc(p);
+      const d = wantAgents && user
+        ? await api.getDocAgents(p)
+        : await api.getDoc(p);
       setDoc(d);
       if (mode === "read") {
         setDraft(d.content);
@@ -87,10 +96,10 @@ export function DocView() {
   useEffect(() => {
     if (!canonicalPath) return;
     const t = setInterval(() => {
-      if (mode === "read") void loadPublic(canonicalPath, false);
+      if (mode === "read") void loadPublic(canonicalPath, false, agentsOn);
     }, 4000);
     return () => clearInterval(t);
-  }, [canonicalPath, mode]);
+  }, [canonicalPath, mode, agentsOn]);
   useEffect(() => {
     const fn = (e: BeforeUnloadEvent) => {
       if (dirty) {
@@ -337,6 +346,23 @@ export function DocView() {
           </div>
           {canEdit && (
             <>
+              <button
+                className={agentsOn ? "active" : ""}
+                onClick={() => {
+                  const next = !agentsOn;
+                  setAgentsOn(next);
+                  try {
+                    localStorage.setItem(
+                      "kv.agentBlocksView",
+                      next ? "1" : "0",
+                    );
+                  } catch {}
+                  if (mode === "read") void loadPublic(canonicalPath, false, next);
+                }}
+                title="Toggle agent instruction blocks in the read view"
+              >
+                {agentsOn ? "Hide agent blocks" : "Show agent blocks"}
+              </button>
               <button onClick={() => void mutate("favorite", !meta.favorite)}>
                 {meta.favorite ? "★ Favorited" : "☆ Favorite"}
               </button>
@@ -521,7 +547,11 @@ export function DocView() {
                 <summary>File info</summary>
                 <Meta meta={meta} />
               </details>
-              <Markdown content={rest} baseFolder={meta.folder} />
+              {canEdit && agentsOn ? (
+                <AgentBlocksView content={rest} baseFolder={meta.folder} />
+              ) : (
+                <Markdown content={rest} baseFolder={meta.folder} />
+              )}
             </article>
           )}
           {mode === "split" && (

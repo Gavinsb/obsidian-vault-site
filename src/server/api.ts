@@ -288,11 +288,19 @@ export function createApi(
   r.get("/docs/*", async (req, res) => {
     let doc = await resolveDoc(service, relOf(req));
     if (!doc) return res.status(404).json({ error: "not_found" });
-    const content = maskAgentBlocks(doc.content);
+    // S6-1: signed-in readers may request the unmasked read projection with
+    // `?agents=1`; everyone else keeps the masked public view unchanged.
+    const wantAgents = req.query.agents === "1" && !!req.auth;
+    const content = wantAgents ? doc.content : maskAgentBlocks(doc.content);
     contents.set(doc.meta.relPath, content);
     const publicMeta =
       service.index.notes.get(doc.meta.relPath)?.meta ?? doc.meta;
-    res.setHeader("Cache-Control", "public, max-age=30");
+    if (wantAgents) {
+      res.setHeader("Cache-Control", "private, no-store, no-transform");
+      res.setHeader("Vary", "Cookie");
+    } else {
+      res.setHeader("Cache-Control", "public, max-age=30");
+    }
     res.json({ ...doc, meta: publicMeta, content });
   });
 

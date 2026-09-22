@@ -81,6 +81,84 @@ export function maskAgentBlocks(source: string): string {
   return result;
 }
 
+/**
+ * Ordered render segments for a body: plain text chunks and agent blocks,
+ * with start/end blocks sharing an `id` grouped into a `pair` segment whose
+ * `inner` holds everything between them (the encapsulated section).
+ * First occurrence of an id = start; last occurrence = end; middle or
+ * unpaired occurrences render as standalone cards.
+ */
+export type BodySegment =
+  | { kind: "text"; text: string }
+  | { kind: "agent"; block: AgentBlock; role: "standalone" }
+  | {
+      kind: "pair";
+      id: string;
+      start: AgentBlock;
+      end: AgentBlock;
+      inner: BodySegment[];
+    };
+
+export function segmentBodyByAgentBlocks(body: string): BodySegment[] {
+  const blocks = parseAgentBlocks(body);
+  const firstIdx = new Map<string, number>();
+  const lastIdx = new Map<string, number>();
+  blocks.forEach((b, i) => {
+    if (!b.id) return;
+    if (!firstIdx.has(b.id)) firstIdx.set(b.id, i);
+    lastIdx.set(b.id, i);
+  });
+
+  const out: BodySegment[] = [];
+  const stack: Array<{ id: string; start: AgentBlock; inner: BodySegment[] }> =
+    [];
+  let cursor = 0;
+  const pushText = (text: string) => {
+    if (!text) return;
+    const target = stack.length ? stack[stack.length - 1].inner : out;
+    target.push({ kind: "text", text });
+  };
+
+  blocks.forEach((b, i) => {
+    if (b.start > cursor) pushText(body.slice(cursor, b.start));
+    cursor = b.end;
+    const isStart = !!b.id && firstIdx.get(b.id) === i;
+    const isEnd = !!b.id && lastIdx.get(b.id) === i;
+    if (isStart && !isEnd) {
+      stack.push({ id: b.id!, start: b, inner: [] });
+      return;
+    }
+    if (isEnd) {
+      const idx = [...stack].reverse().findIndex((p) => p.id === b.id);
+      if (idx !== -1) {
+        const pi = stack.length - 1 - idx;
+        const pair = stack.splice(pi, 1)[0];
+        const seg: BodySegment = {
+          kind: "pair",
+          id: pair.id,
+          start: pair.start,
+          end: b,
+          inner: pair.inner,
+        };
+        const target = stack.length ? stack[stack.length - 1].inner : out;
+        target.push(seg);
+        return;
+      }
+    }
+    const target = stack.length ? stack[stack.length - 1].inner : out;
+    target.push({ kind: "agent", block: b, role: "standalone" });
+  });
+
+  if (cursor < body.length) pushText(body.slice(cursor));
+  while (stack.length) {
+    const pair = stack.pop()!;
+    const target = stack.length ? stack[stack.length - 1].inner : out;
+    target.push({ kind: "agent", block: pair.start, role: "standalone" });
+    target.push(...pair.inner);
+  }
+  return out;
+}
+
 function findReview(source: string, id: string): AgentBlock {
   const matches = parseAgentBlocks(source).filter(
     (b) => b.type === "agent-review" && b.id === id,
