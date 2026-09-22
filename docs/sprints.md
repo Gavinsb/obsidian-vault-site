@@ -10,10 +10,13 @@ as e.g. `S4-3`.
 
 ---
 
-## S6 — collecting (open)
+## S6 — planned (awaiting build authorization)
 
-- **Status:** collecting items — no planning or implementation authorized
+- **Status:** plan finalized — awaiting explicit `start build`; no implementation authorized
 - **Opened:** 2026-09-22
+- **Planning finalized:** 2026-09-22
+- **Detailed plan:** [`docs/sprint-S6-plan.md`](sprint-S6-plan.md)
+- **Decisions:** signed-in-only unmasked read variant (`?agents=1`, `private, no-store` vs public masking unchanged); segment-render agent blocks as blueprint cards instead of feeding them through the markdown pipeline; start/end pairs by matching `ID:` metadata with bracket line + hover shading; palette via new CSS tokens for dark and light.
 - **Items (1):**
   1. **S6-1 — Show agent blocks in read-only view (signed-in):** when logged in, render agent instruction/review blocks in the read-only article view instead of stripping them; add a toggle button to show/hide this view. Blocks get a "blueprint" aesthetic: light desaturated background (amber/lavender/gray) with dashed/dotted border, high-contrast pill badge (`Admin Instruction` / `ID: #…`), monospace for technical details. Encapsulated start/end pairs share a matching color-coded ID tag (e.g. emerald green), a vertical dashed "bracket" margin line spanning from start-block bottom to end-block top, and hover shading that tints the entire encapsulated section. Color scheme must adapt to the selected light/dark theme.
 
