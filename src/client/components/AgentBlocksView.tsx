@@ -65,17 +65,21 @@ function AdminBlockCard({
   const roleText =
     role === "start" ? "Start " : role === "end" ? "End " : "";
   const target = block.target ? `TARGET: ${block.target}` : "";
+  const status = block.metadata?.status ?? "";
   return (
     <div
       className={`admin-instruction-block ${role}-block`}
       data-instruction-id={block.id ?? undefined}
     >
-      <span className="admin-badge">
-        {roleText}
-        {label}
-        {idText}
-      </span>
-      {target && <span className="admin-target mono">{target}</span>}
+      <div className="admin-block-head">
+        <span className="admin-badge">
+          {roleText}
+          {label}
+          {idText}
+        </span>
+        {target && <span className="admin-target mono">{target}</span>}
+        {status && <span className="admin-status mono">{status}</span>}
+      </div>
       {block.content && (
         <div className="admin-block-content">{block.content}</div>
       )}

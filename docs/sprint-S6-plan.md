@@ -14,6 +14,7 @@
 - **2026-09-22 — Wave 4 done.** New tokens `--agent-block-*`, `--agent-badge-*`, `--agent-pair-*`, `--agent-hover-tint`, `--font-mono` defined for both `:root` (dark) and `html[data-theme='light']`; card/badge/bracket/hover rules with a mobile fallback.
 - **2026-09-22 — Gates green.** `npm run lint`; Vitest 112/112 across 18 files (new: `tests/admin-read-view.test.ts`, `tests/s6-agent-read.test.ts`, expanded `tests/agent-blocks.test.ts`); production build (1609 modules); fixture QA 27/27; `git diff --check`.
 - **2026-09-22 — Deployed.** `kv-microsite.service` restarted (user systemd, active), local `127.0.0.1:18790` returns 200, external tunnel `https://items-lakes-dream-keyboards.trycloudflare.com` returns 200; anonymous live checks against `Social Proof.md` confirm masking holds on both the default and `?agents=1` projections.
+- **2026-09-22 — Minor follow-up.** Agent-block cards now show their `STATUS:` metadata as a pill on the top right of the block (`admin-status`, pushed right via `margin-left: auto` in `.admin-block-head`). Lint clean; Vitest 113/113; build passed; QA 27/27; deployed and verified after restart.
 
 ## Scope
 

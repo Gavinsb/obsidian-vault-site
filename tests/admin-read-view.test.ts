@@ -51,6 +51,14 @@ describe("S6-1 agent blocks in read-only view", () => {
     }
   });
 
+  it("shows the block status in a top-right pill", () => {
+    expect(agentBlocksView).toContain("admin-status");
+    expect(agentBlocksView).toContain("block.metadata?.status");
+    expect(agentBlocksView).toContain("admin-block-head");
+    expect(styles).toContain(".admin-status");
+    expect(styles).toContain("margin-left: auto");
+  });
+
   it("defines theme-adaptable palette tokens for dark and light themes", () => {
     expect(styles).toMatch(/--agent-block-bg:/);
     expect(styles).toMatch(/--agent-block-border:/);

@@ -280,6 +280,24 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
   color: var(--text-dim);
   font-size: 0.75rem;
 }
+.admin-block-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.admin-status {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--agent-block-border);
+  border-radius: var(--radius-pill);
+  padding: 1px 10px;
+  background: var(--bg-card);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .admin-block-content {
   margin-top: 8px;
   white-space: pre-wrap;
