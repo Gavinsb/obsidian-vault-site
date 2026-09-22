@@ -10,6 +10,14 @@ as e.g. `S4-3`.
 
 ---
 
+## S7 — collecting (open)
+
+- **Status:** collecting items — no planning or implementation authorized
+- **Opened:** 2026-09-22
+- **Items:** none yet
+
+---
+
 ## S6 — complete ✅
 
 - **Status:** complete — implemented, verified, deployed, committed, and pushed
