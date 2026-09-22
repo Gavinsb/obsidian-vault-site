@@ -104,11 +104,11 @@ Badge/ID text uses the existing `--text` / `--text-dim` / mono font stack (`font
 3. `npm run lint`, `npm test`, `npm run build`, `npm run qa`, `git diff --check`.
 4. Restart `kv-microsite.service`; verify local + HTTPS endpoints; commit with `Gavinsb` identity, push `master`, confirm HEAD parity.
 
-## Open questions (Gav to confirm before build)
+## Open questions — resolved by defaults (no answer received; Gav may override)
 
-- **Q1 — Toggle default & persistence:** on by default for signed-in users, off by default, or remember last choice (localStorage)?
-- **Q2 — Block types:** show only `> [!agent]` instructions, or also `> [!agent-review]` blocks (recommended: both, since read view is display-only)?
-- **Q3 — Pairing rule:** derive start/end pairs from identical `ID:` metadata (recommended), or expect explicit `START`/`END` markers in headers?
+- **Q1 — Toggle default & persistence:** remember last choice via `localStorage` (`kv.agentBlocksView`), default off on first visit.
+- **Q2 — Block types:** show both `> [!agent]` instructions and `> [!agent-review]` blocks (read view is display-only; Accept/Reject stays draft-only).
+- **Q3 — Pairing rule:** derive start/end pairs from identical `ID:` metadata (first block with a given id = start, last = end, content between = encapsulated).
 
 ## Definition of done
 
