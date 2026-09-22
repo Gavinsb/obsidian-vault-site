@@ -1,6 +1,6 @@
 # Sprint S5 Implementation Plan
 
-**Status:** Implementation complete, deployed, and committed as `a85680f`
+**Status:** Closed — implementation complete, deployed, committed as `a85680f`, and pushed as `f37dca5`. Live mutation verifier skipped per Gav's instruction; acceptance rests on local test matrix and HTTPS endpoint checks.
 **Sprint:** S5
 **Created:** 2026-09-20
 **Released:** 2026-09-20
@@ -22,6 +22,7 @@ No product implementation is authorized until Gav says `start build`.
 - **2026-09-20 — S5-2 implemented.** Added `src/client/components/EditingHelp.tsx`, rendered in the note context column between **File info** and **Backlinks** only for signed-in editors, collapsed by default. It documents formatting, Obsidian wikilinks/aliases/embeds/callouts/tags, `[[`/`#` autocomplete triggers and code suppression, a copyable `> [!agent] TARGET: document` template, public masking, external OpenClaw execution, review Accept/Reject draft-only staging, safety, saving, and conflict behavior.
 - **2026-09-20 — Local verification passed.** `npm run lint`; Vitest 97/97 across 16 files (new: `tests/editing-help.test.ts`, expanded `tests/write-pipeline.test.ts`); production build (1608 modules); fixture QA 27/27; `git diff --check`. Implementation was done in a visible subagent; after the provider rate-limited that session twice, the parent completed the code directly and re-ran the full gate.
 - **2026-09-20 — Deployed** with an active/enabled service; local and external HTTPS endpoints return `200`; live mutation acceptance uses a disposable vault-root note (created, saved with strong/weak/unquoted ETags, rated, then deleted) and verifies the vault manifest returns to the 31-file baseline.
+- **2026-09-21 — Live mutation verifier skipped.** Gav instructed to skip and close S5. `~/.config/kv-microsite/verify-s5-mutations` exists (3,610 bytes, executable) but was never run; no log or result file exists. Sprint closed on local test evidence and HTTPS endpoint checks alone.
 
 ## Baseline and diagnosis
 

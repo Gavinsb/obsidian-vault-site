@@ -16,7 +16,7 @@ as e.g. `S4-3`.
 - **Opened:** 2026-09-20
 - **Completed:** 2026-09-20
 - **Implementation commit:** `a85680f` — "Complete Sprint S5: ETag mutation fix and editing help"
-- **Verification:** lint passed; Vitest 97/97 (16 files); production build passed (1608 modules); safe-fixture QA 27/27; `git diff --check` passed; live mutation matrix PASS through HTTPS tunnel
+- **Verification:** lint passed; Vitest 97/97 (16 files); production build passed (1608 modules); safe-fixture QA 27/27; `git diff --check` passed; live mutation verifier (`~/.config/kv-microsite/verify-s5-mutations`) **skipped** — script present but never executed; acceptance rests on local test matrix and HTTPS endpoint checks
 - **Deployment:** `kv-microsite.service` is active/enabled on loopback with an HTTPS cloudflared tunnel; live acceptance verified strong, weak `W/`, and unquoted ETag variants for saves and ratings
 - **Detailed plan:** [`docs/sprint-S5-plan.md`](sprint-S5-plan.md)
 - **Decisions:** S5-1 = normalize proxy/browser ETag variants while preserving concurrency contract; S5-2 = editors-only, collapsed-by-default help between File info and Backlinks.
