@@ -9,6 +9,43 @@ export interface Command {
   run: () => void;
 }
 
+/**
+ * S7-10 — the shared palette keyboard contract.
+ *
+ * `CommandPalette` and the editor's slash menu are the same interaction, so
+ * they resolve keys through one pure function: ↑/↓ move, Enter (or Tab)
+ * accepts, Escape dismisses. Keeping it here means the two menus can never
+ * drift apart.
+ */
+export interface PaletteKeyState {
+  count: number;
+  selected: number;
+}
+
+export type PaletteKeyIntent =
+  | { type: "move"; selected: number }
+  | { type: "select"; selected: number }
+  | { type: "close" }
+  | { type: "none" };
+
+export function paletteKeyIntent(
+  key: string,
+  state: PaletteKeyState,
+): PaletteKeyIntent {
+  const { count, selected } = state;
+  if (key === "ArrowDown" || key === "Down") {
+    return { type: "move", selected: Math.min(selected + 1, Math.max(count - 1, 0)) };
+  }
+  if (key === "ArrowUp" || key === "Up") {
+    return { type: "move", selected: Math.max(selected - 1, 0) };
+  }
+  if (key === "Enter" || key === "Tab") {
+    return count > 0 ? { type: "select", selected } : { type: "close" };
+  }
+  if (key === "Escape") return { type: "close" };
+  return { type: "none" };
+}
+
 export function CommandPalette({
   onClose,
   onOpen,
@@ -98,18 +135,12 @@ export function CommandPalette({
   const combined = [...filteredCommands, ...filteredDocs];
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSel((s) => Math.min(s + 1, combined.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSel((s) => Math.max(s - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      combined[sel]?.run();
-    } else if (e.key === 'Escape') {
-      onClose();
-    }
+    const intent = paletteKeyIntent(e.key, { count: combined.length, selected: sel });
+    if (intent.type === "none") return;
+    e.preventDefault();
+    if (intent.type === "move") setSel(intent.selected);
+    else if (intent.type === "select") combined[intent.selected]?.run();
+    else onClose();
   };
 
   return (

@@ -19,7 +19,7 @@
  * programmatically (review accept/reject, reload-after-save). Typing
  * flows out through `onChange`.
  */
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AtomicCodeMirrorEditor,
   type AtomicCodeMirrorEditorHandle,
@@ -39,6 +39,24 @@ import {
   findAutocompleteTrigger,
 } from "../../shared/editor-utils";
 import { api } from "../api";
+import { BlockToolbar } from "./BlockToolbar";
+import { SlashMenu } from "./SlashMenu";
+import {
+  blockAffordances,
+  caretAnchor,
+  measureSelection,
+  selectionReporter,
+  type SelectionInfo,
+} from "./block-affordances";
+import {
+  slashMenuExtension,
+  slashReporter,
+  slashSelect,
+  type SlashState,
+} from "./slash-menu";
+import { applyInlineMarkToView, insertBlockBelow } from "./editor-actions";
+import { filterScaffolds } from "../../shared/slash-menu";
+import type { InlineMark } from "../../shared/inline-marks";
 
 export interface EditorProps {
   value: string;
@@ -306,6 +324,18 @@ export function selectRange(
   return true;
 }
 
+/** True when two slash-menu snapshots describe the same row. */
+function sameSlash(a: SlashState | null, b: SlashState | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.from === b.from &&
+    a.to === b.to &&
+    a.query === b.query &&
+    a.selected === b.selected
+  );
+}
+
 export function Editor({
   value,
   onChange,
@@ -322,12 +352,36 @@ export function Editor({
   const lastKnown = useRef(value);
   const onChangeRef = useRef(onChange);
   const onSaveRef = useRef(onSave);
+  /** Bubble toolbar state (S7-10) + the offset the user dismissed it at. */
+  const [selection, setSelection] = useState<SelectionInfo | null>(null);
+  const dismissedAt = useRef<number | null>(null);
+  /** Slash menu state (S7-10). */
+  const [slash, setSlash] = useState<SlashState | null>(null);
+  const [slashAnchorPoint, setSlashAnchorPoint] = useState({ top: 0, left: 0 });
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
   useEffect(() => {
     onSaveRef.current = onSave;
   }, [onSave]);
+
+  const liveView = useCallback(() => {
+    const dom = handleRef.current?.getContentDOM();
+    return dom ? EditorView.findFromDOM(dom) : null;
+  }, [handleRef]);
+
+  // Stable callbacks for the extensions (they are captured at mount).
+  const reportSelection = useRef((info: SelectionInfo | null) => {
+    if (info && dismissedAt.current !== null && dismissedAt.current === info.to) return;
+    if (info) dismissedAt.current = null;
+    setSelection(info);
+  });
+  const reportSlash = useRef((next: SlashState | null) => {
+    setSlash((previous) => (sameSlash(previous, next) ? previous : next));
+  });
+  const insertBelow = useRef((view: EditorView, block: Parameters<typeof insertBlockBelow>[1]) => {
+    insertBlockBelow(view, block);
+  });
 
   // `documentId ?? path` is the document identity: a different note remounts
   // the view (no stale cursor/undo), the same note keeps its state.
@@ -356,9 +410,25 @@ export function Editor({
         icons: false,
       }),
       editorFrameTheme,
+      // S7-10 / S7-11 — gutter, drag handle, drop zones, slash menu, bubble
+      // toolbar reporting. All view-level; none of them rewrite the source.
+      blockAffordances({
+        onInsertBelow: (view, block) => insertBelow.current(view, block),
+      }),
+      slashMenuExtension({ context: () => ({ target: path }) }),
+      slashReporter((next) => reportSlash.current(next)),
+      selectionReporter((info) => reportSelection.current(info)),
     ],
     [path],
   );
+
+  // Keep the slash overlay anchored to the caret that opened it.
+  useEffect(() => {
+    if (!slash) return;
+    const view = liveView();
+    if (!view) return;
+    setSlashAnchorPoint(caretAnchor(view, slash.from));
+  }, [slash, liveView]);
 
   const handleChange = useCallback((next: string) => {
     lastKnown.current = next;
@@ -389,6 +459,38 @@ export function Editor({
         editorHandleRef={handleRef}
         extensions={extensions}
       />
+      {!readOnly && selection && (
+        <BlockToolbar
+          top={selection.top}
+          left={selection.left}
+          hasSelection={selection.to > selection.from}
+          onCommand={(mark: InlineMark, arg?: string) => {
+            const view = liveView();
+            if (view) {
+              applyInlineMarkToView(view, mark, arg);
+              dismissedAt.current = null;
+              setSelection(measureSelection(view));
+            }
+          }}
+          onClose={() => {
+            dismissedAt.current = selection?.to ?? null;
+            setSelection(null);
+          }}
+        />
+      )}
+      {!readOnly && slash && (
+        <SlashMenu
+          items={filterScaffolds(slash.query)}
+          selected={slash.selected}
+          query={slash.query}
+          top={slashAnchorPoint.top}
+          left={slashAnchorPoint.left}
+          onSelect={(index) => {
+            const view = liveView();
+            if (view) slashSelect(view, index);
+          }}
+        />
+      )}
     </div>
   );
 }
