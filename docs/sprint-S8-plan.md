@@ -1,6 +1,6 @@
 # Sprint S8 Implementation Plan — Editor Modes, Header Layout & Tables
 
-**Status:** PLANNED 2026-09-24 — Q1–Q3 answered; Q4–Q7 pending; awaiting "start build".
+**Status:** PLANNED 2026-09-24 — Q1–Q3 and Q5 answered; Q4, Q6, Q7 pending; awaiting "start build".
 **Sprint:** S8 (20 items, `S8-1` … `S8-20`)
 **Opened:** 2026-09-24 (collection) · **Plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`
@@ -31,6 +31,7 @@ Fix the note header layout and the editing experience surfaced by the 2026-09-24
 3. **Ratings and favourite are read-only-mode only** — not available (and not shown) in Edit or Raw.
 4. **Raw mode is a dedicated source editor** built from the `@codemirror/*` packages already installed — plain markdown source with line numbers, and **no live preview, no block chrome, no agent console and no Properties editor**. `AtomicCodeMirrorEditor` stays the Edit-mode engine only. *(Answered 2026-09-24, Q1.)*
 5. **Table row/column controls are added by patching and vendoring the editor package in-repo** — a local workspace copy of `@atomic-editor/editor@0.6.2` whose `table-widget` gains the visible affordances (S8-17/18/19). Upstream later. *(Answered 2026-09-24, Q2 = option a.)*
+6. **The read article drops both File info and Properties** — they live in the right rail only; the duplicated collapsible cards are removed from the article. *(Answered 2026-09-24, Q5 = both.)*
 
 Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
@@ -46,7 +47,7 @@ Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
 **Q4 — S8-11 gate definition.** Is "overlap" = block-level (a blocking finding whose block intersects the changed line range in the draft) acceptable? And should the "save anyway" escape be **admin-only** (recommended) or any signed-in user?
 
-**Q5 — S8-6 scope.** Drop **both** File info and Properties collapsibles from the read article (rail keeps them), or keep File info in the article and drop only Properties?
+**Q5 — S8-6 scope — ANSWERED 2026-09-24 (both).** Drop **both** File info and Properties collapsibles from the read article; the right rail keeps them.
 
 **Q6 — S8-7 overflow contents.** Confirm the `⋯` menu holds **Show agent blocks** and **Delete** (Favourite moves next to the rating and only shows in read mode). Any other action to move?
 
@@ -76,7 +77,7 @@ Dependency order only; one release.
 - `DocView.tsx`: `type Mode = "read" | "edit" | "raw"`; delete the split branch and the split JSX; keep one `enter()` path per mode.
 - New `RawEditor.tsx` (per Q1) sharing the host's `value` / `onChange` / Save contract.
 - `styles.css`: remove `.doc-body.split` rules; make `.doc-toolbar` sticky; move Save/Cancel into it; align the breadcrumb row (mobile); collapse the Properties box while editing; retire the standalone `.editor-bar` when empty.
-- Read article: drop the duplicated File info / Properties collapsibles (per Q5).
+- Read article: drop both duplicated collapsibles — File info and Properties (per Q5); the rail keeps them.
 - Add the `⋯` overflow menu (pattern from `BlockToolbar.tsx`) for Show agent blocks / Delete.
 - Hide the mode toggle when signed out; show a muted note title beside the breadcrumbs while editing; add an unsaved-changes guard before Delete.
 - Move `EditingHelp` out of the read rail (lands in W3).
