@@ -10,13 +10,13 @@ as e.g. `S4-3`.
 
 ---
 
-## S8 — planned 🗺
+## S8 — released ✅
 
-- **Status:** planned — awaiting "start build" (7 clarifying questions Q1–Q7 pending)
+- **Status:** released ✅ — all 20 items and seven waves (W0–W6) implemented, verified and deployed 2026-09-24
 - **Opened:** 2026-09-24 (collection) — review of `eb439a0`, focus header layout + article edit functions
-- **Planned:** 2026-09-24
-- **Decisions (Gav, 2026-09-24):** remove Split view entirely; add a Raw markdown source editor back as an option; ratings and favourite become read-only-mode affordances only (not available while editing).
-- **Detailed plan:** [`docs/sprint-S8-plan.md`](sprint-S8-plan.md) — objective, locked decisions, as-built constraints, waves W0–W6, verification plan, open questions Q1–Q7.
+- **Planned:** 2026-09-24 · **Completed:** 2026-09-24
+- **Decisions (Gav, 2026-09-24):** remove Split view entirely; add a Raw markdown source editor back as an option; ratings and favourite become read-only-mode affordances only (not available while editing). Q1 = Raw is a dedicated source editor (no live preview, no block chrome, no Properties, no agent console). Q2 = (a) patch + vendor `@atomic-editor/editor` in-repo. Q3 = cell click/tap focus is a bug, not discoverability. Q4 = block-level Save gate (a) + admin-only "Save anyway" (b) + enforced findings hard-blocked (c). Q5 = read article drops both File info and Properties. Q6 = option A overflow (`⋯` = Show agent blocks (admins only) + Delete; Favourite inline next to the rating; Delete keeps the confirm panel). Q7 = one release.
+- **Detailed plan:** [`docs/sprint-S8-plan.md`](sprint-S8-plan.md) — objective, locked decisions, as-built constraints, waves W0–W6, verification plan.
 - **Items (20):**
   1. **S8-1 — Remove Split view:** drop the `split` mode (button, state, and the `.doc-body.split` grid CSS); the mode toggle becomes Read / Edit.
   2. **S8-2 — Add a Raw source editor option:** `Read | Edit | Raw`, where Raw shows the plain markdown source (simple textarea / plain CM6) with no live preview or block chrome; same Save/Cancel/ETag contract; remember the last choice (like `kv.agentBlocksView`).
@@ -38,8 +38,14 @@ as e.g. `S4-3`.
   18. **S8-18 — Fix cell focus on click/tap:** a plain click on a cell should place the caret inside it so typing edits that cell; today it can focus the outer editor and send the keystrokes into the document body.
   19. **S8-19 — Final row/column behaviour:** define what deleting the last body row or last column does (e.g. convert the table to a paragraph) instead of silently doing nothing.
   20. **S8-20 — Document tables in the Editing help:** cover creation, the row/column menu, Tab/Enter navigation and cell editing (folds into S8-13).
-- **Plan:** complete 2026-09-24 — see [`docs/sprint-S8-plan.md`](sprint-S8-plan.md); awaiting answers to Q1–Q7
-- **Build:** not started — awaiting "start build"
+- **Plan:** complete 2026-09-24 — [`docs/sprint-S8-plan.md`](sprint-S8-plan.md); Q1–Q7 answered during collection/plan.
+- **Build (seven waves):** W1 modes & header layout (remove Split, new `RawEditor`, sticky toolbar with Save/Cancel, read-mode-only rating + favourite, admins-aware `⋯` overflow, rail de-dup, collapsed Properties in Edit, mobile breadcrumb alignment, note title while editing, dirty-draft Delete guard); W2 mutation safety (read-poll invalidation on source load, Save gate narrowed to blocking findings inside the changed blocks via new `changed-ranges.ts`, admin-only "Save anyway"); W3 editing help (edit-only, per-editor copy, tables documented); W4 table creation (`/table` slash scaffold + turn-into Table); W5 table controls (vendored + patched `@atomic-editor/editor` under `vendor/atomic-editor`: visible row/column tools, click/tap cell focus, last-row → paragraph); W6 verification + deploy.
+- **Verification:** `npx tsc --noEmit` clean; Vitest **308/308 across 33 files** (new `s8-modes`, `s8-tables`, `s8-changed-ranges`; four S4/S5/S7 source-assertion tests updated to the new contract); production build passed (1663 modules); safe-fixture QA **27/27**; `kv-microsite.service` restarted clean with 65 documents indexed; local `127.0.0.1:18790` returns 200 and `/api/config` reports the expected site identity.
+- **Deployment:** `kv-microsite.service` rebuilt and restarted 2026-09-24 12:51 UTC (active/enabled).
+- **Commit(s):** `95b006f` (implementation + vendored editor + tests) · docs: `dd931ba` (open, 12 items) · `a44ba91` (items 13–14) · `bfe9838` (items 15–20) · `7c51a69` (plan) · `b17be0a`, `3e984ba`, `92c6fc8`, `413926c`, `b6cafe7`, `851177f`, `5ab6f27`, `f1c9326` (Q1–Q7 answers) · release-record commit (this entry).
+- **Out of scope:** CRDT/multi-user collaboration; live Mermaid/KaTeX rendering; model execution; a general table schema; re-theming; auth redesign; multi-vault indexing; upstreaming the editor patch (noted for a later release).
+- **Notes:** the editor package is now vendored at `vendor/atomic-editor` and linked via `file:./vendor/atomic-editor`; its `prepare`/`build` scripts were removed from the vendored copy and React is deduped in both Vite configs so the vendored modules share one React instance.
+- **Build:** complete 2026-09-24 — released.
 
 ---
 
