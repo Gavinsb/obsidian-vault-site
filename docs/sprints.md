@@ -10,11 +10,29 @@ as e.g. `S4-3`.
 
 ---
 
-## S7 — collecting (open)
+## S7 — planned (open)
 
-- **Status:** collecting items — no planning or implementation authorized
-- **Opened:** 2026-09-22
-- **Items:** none yet
+- **Status:** unified specification and detailed plan complete; **no implementation authorised until `start build`**
+- **Opened:** 2026-09-22 (collection) · **Unified plan:** 2026-09-24
+- **Specification:** [`docs/wysiwyg-editor-spec.md`](wysiwyg-editor-spec.md) — v4.1 unified WYSIWYG editor + Agent Block Console design
+- **Detailed plan:** [`docs/sprint-S7-plan.md`](sprint-S7-plan.md)
+- **Goal:** replace the raw textarea with one CodeMirror 6 block-aware WYSIWYG release containing the complete Agent Block Console, server-ranked completions, validator R1–R15, structured Properties, embeds/preview, and full block manipulation.
+- **Decisions:** Q1–Q9 remain locked. Former Phase 1/MVP and Phase 2 are merged into one S7 release. Final completions use the new server endpoint; validator ships R1–R15; drag/drop is functional (before/after/nest only); the ID index is vault-wide; two-column layout and live Mermaid rendering remain excluded.
+- **Items (13):**
+  1. **S7-1 — Foundation verdict spike** (direct CM6 vs prior art; evidence, no product code)
+  2. **S7-2 — Block-boundary detector** (shared, nested/fence/CRLF-safe, byte-exact)
+  3. **S7-3 — Unified server-ranked completions** (notes/tags/headings/block refs/callout types; keyboard + caret UI)
+  4. **S7-4 — Agent status, vault-wide ID index, validator R1–R15**
+  5. **S7-5 — CM6 editor core** (live inline rendering, cursor-reveals-source, core OFM)
+  6. **S7-6 — Agent Block Console** (legal statuses, ID/TARGET/pairing/feedback/halt/accept-reject)
+  7. **S7-7 — Console placement + complete validator UI** (side panel + inline, edit-scoped Save gate)
+  8. **S7-8 — Structured Properties/frontmatter editor**
+  9. **S7-9 — Embeds, block refs, masked hover preview**
+  10. **S7-10 — Gutter, bubble toolbar, slash menu, turn-into**
+  11. **S7-11 — Drag/drop, nested drag, multi-select, bulk actions**
+  12. **S7-12 — Save/concurrency/masking/safety integration**
+  13. **S7-13 — Verification, docs, deployment, commit/push**
+- **Out of scope:** CRDT/multi-user collaboration; inline comments/history; two-column layout; live Mermaid/KaTeX rendering; plugin block API; model execution; auth redesign; multi-vault indexing.
 
 ---
 
