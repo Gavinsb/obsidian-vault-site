@@ -94,6 +94,39 @@ describe("S7-5 Editor (CM6 core)", () => {
     expect(onChange).toHaveBeenLastCalledWith("Hello, world");
   });
 
+  it("mounts without a CM6 plugin crash (regression: duplicate @lezer/common)", () => {
+    // Two copies of @lezer/common made CM6's tree highlighter throw
+    // "tags is not iterable" on every mount, silently killing highlighting.
+    // A single deduped version must mount clean.
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mount({
+        value: [
+          "---",
+          "title: Crash probe",
+          "---",
+          "",
+          "# Heading",
+          "",
+          "> [!note] callout",
+          "> body with **bold**",
+          "",
+          "- item one",
+          "- item two",
+          "",
+          "`inline` and [[Beta Note]]",
+          "",
+        ].join("\n"),
+        onChange: vi.fn(),
+      });
+      const messages = spy.mock.calls.map((args) => args.join(" ")).join("\n");
+      expect(messages).not.toMatch(/tags is not iterable|plugin crashed/i);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("blocks typing when readOnly", () => {
     const onChange = vi.fn();
     const { content, view } = mount({ value: "Hello world", onChange, readOnly: true });
