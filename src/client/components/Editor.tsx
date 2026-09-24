@@ -67,6 +67,13 @@ export interface EditorProps {
   onSave?: () => void;
   className?: string;
   /**
+   * Vault-wide reserved agent IDs (S7-12, carried forward from Wave 6).
+   * Threaded into the slash menu's scaffold context so a newly inserted agent
+   * instruction/review never collides with an existing block or the sweep log.
+   * Only the ID seed changes — the scaffold shape stays byte-exact.
+   */
+  reservedIds?: readonly string[];
+  /**
    * Optional imperative handle (`focus`, `undo`, `redo`, `getMarkdown`,
    * `getContentDOM`, …). The host uses it for range navigation such as the
    * agent-staging "Go to source" button.
@@ -345,9 +352,19 @@ export function Editor({
   onSave,
   className,
   editorHandleRef,
+  reservedIds,
 }: EditorProps) {
   const internalHandle = useRef<AtomicCodeMirrorEditorHandle | null>(null);
   const handleRef = editorHandleRef ?? internalHandle;
+  /**
+   * Reserved IDs live in a ref because the extensions array (and therefore the
+   * slash-menu context provider) is captured once per document; the ref keeps
+   * generation current without tearing the view down on every fetch.
+   */
+  const reservedIdsRef = useRef<readonly string[]>(reservedIds ?? []);
+  useEffect(() => {
+    reservedIdsRef.current = reservedIds ?? [];
+  }, [reservedIds]);
   /** Last markdown this component either emitted or pushed into the view. */
   const lastKnown = useRef(value);
   const onChangeRef = useRef(onChange);
@@ -415,7 +432,9 @@ export function Editor({
       blockAffordances({
         onInsertBelow: (view, block) => insertBelow.current(view, block),
       }),
-      slashMenuExtension({ context: () => ({ target: path }) }),
+      slashMenuExtension({
+        context: () => ({ target: path, reservedIds: reservedIdsRef.current }),
+      }),
       slashReporter((next) => reportSlash.current(next)),
       selectionReporter((info) => reportSelection.current(info)),
     ],

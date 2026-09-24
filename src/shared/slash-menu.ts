@@ -37,6 +37,13 @@ export type ScaffoldCategory =
 export interface ScaffoldContext {
   agentId?: string;
   target?: string;
+  /**
+   * Vault-wide reserved agent IDs (S7-12, carried forward from Wave 6). When
+   * no explicit `agentId` is supplied, generation is seeded with these so a
+   * newly inserted scaffold can never collide with an existing block or with
+   * an ID already recorded in `Agent_Sweep_Log.md`.
+   */
+  reservedIds?: readonly string[];
 }
 
 export interface Scaffold {
@@ -80,7 +87,9 @@ const SCAFFOLD_BY_ID: ReadonlyMap<string, Scaffold> = new Map(
 );
 
 function agentHeader(type: AgentHeaderType, ctx: ScaffoldContext): string {
-  const id = ctx.agentId ?? generateAgentId([]);
+  // Only the seed changes with the host's reserved set; the header bytes for a
+  // given ID stay exactly `formatAgentHeader()` output.
+  const id = ctx.agentId ?? generateAgentId(ctx.reservedIds ?? []);
   const target = ctx.target ?? "document";
   return type === "agent"
     ? formatAgentHeader("agent", { status: "new", id, target })

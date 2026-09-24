@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import type { Document } from "../api";
 import { ApiError, api } from "../api";
@@ -10,6 +10,7 @@ import { RatingStars } from "./RatingStars";
 import { Breadcrumbs } from "./Breadcrumbs";
 import {
   acceptAgentReview,
+  parseAgentBlocks,
   rejectAgentReview,
 } from "../../shared/agent-blocks";
 import {
@@ -47,6 +48,11 @@ export function DocView() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmExternal, setConfirmExternal] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  // S7-12 (carried forward from Wave 6): the slash menu's agent scaffolds must
+  // avoid the vault's reserved IDs. `?path=` excludes this note's own IDs from
+  // the endpoint response; they are re-added from the live draft below so a
+  // generated ID cannot duplicate a block in this note either.
+  const [reservedIds, setReservedIds] = useState<string[]>([]);
   const [agentsOn, setAgentsOn] = useState<boolean>(() => {
     try {
       return localStorage.getItem("kv.agentBlocksView") === "1";
@@ -58,6 +64,9 @@ export function DocView() {
   const editorHandle = useRef<AtomicCodeMirrorEditorHandle | null>(null);
   // Monotonic sequence for the read-path loads below.
   const seq = useRef(0);
+  // Exactly-one-save guard: a batched double activation (fast double-click,
+  // keyboard + click in one tick) must never issue a second If-Match write.
+  const savingRef = useRef(false);
   const canonicalPath = doc?.meta.relPath ?? lookup;
   const dirty = draft !== baseline;
   const canEdit = !!user;
@@ -73,6 +82,18 @@ export function DocView() {
     onReject: (id) => setDraft(rejectAgentReview(draft, id)),
   });
   const saveBlocked = isSaveBlocked(agentConsole.findings);
+  // Reserved IDs threaded into the editor's slash menu (S7-12).
+  const draftIds = useMemo(
+    () =>
+      parseAgentBlocks(draft)
+        .map((block) => block.id)
+        .filter((id): id is string => !!id),
+    [draft],
+  );
+  const editorReservedIds = useMemo(
+    () => [...reservedIds, ...draftIds],
+    [reservedIds, draftIds],
+  );
   const loadPublic = async (p: string, spin = true, wantAgents = agentsOn) => {
     if (spin) setLoading(true);
     setError(null);
@@ -123,6 +144,23 @@ export function DocView() {
   useEffect(() => {
     if (canEdit && mode !== "read") void agentConsole.refreshReservedIds();
   }, [canEdit, mode]);
+  // The host's copy of the same reserved set, fed to the editor so the slash
+  // menu can seed ID generation (never a network write of its own).
+  useEffect(() => {
+    if (!canEdit || mode === "read" || !canonicalPath) return;
+    let alive = true;
+    void api
+      .agentIds(canonicalPath)
+      .then((out) => {
+        if (alive) setReservedIds(out.ids ?? []);
+      })
+      .catch(() => {
+        if (alive) setReservedIds([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [canEdit, mode, canonicalPath]);
   // S7-9 — resolve a copied block reference: `/note/Note#^block-id` scrolls
   // to the rendered block anchor once the target note is loaded.
   useEffect(() => {
@@ -186,6 +224,10 @@ export function DocView() {
     return out;
   };
   const onSave = async (etag = baseEtag, explicitOverwrite = false) => {
+    // S7-12 exactly-one-save guard: a batched double activation must never
+    // reach the network twice. The S4 duplicate-save contract below is kept
+    // byte-identical and still applies.
+    if (savingRef.current) return;
     if (saving || !dirty || (!explicitOverwrite && !!conflict)) return;
     // S7-7 Save gate: a blocking finding on a session-edited block must be
     // fixed before the draft can be persisted (no escape hatch).
@@ -193,6 +235,7 @@ export function DocView() {
       setFlash({ kind: "warn", msg: "Fix the blocking validator findings before saving." });
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     setFlash(null);
     try {
@@ -222,6 +265,7 @@ export function DocView() {
         });
       else setFlash({ kind: "err", msg: String(e) });
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -266,6 +310,7 @@ export function DocView() {
       value={draft}
       onChange={(e) => onInput(e)}
       path={canonicalPath}
+      reservedIds={editorReservedIds}
       readOnly={mode === "read"}
       onSave={() => void onSave()}
       editorHandleRef={editorHandle}
