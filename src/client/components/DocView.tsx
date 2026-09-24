@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import type { Document, SearchHit } from "../api";
+import type { Document } from "../api";
 import { ApiError, api } from "../api";
 import { useAuth } from "../auth";
 import { Markdown, stripFrontmatter, splitTitle } from "./Markdown";
@@ -11,10 +11,8 @@ import {
   parseAgentBlocks,
   rejectAgentReview,
 } from "../../shared/agent-blocks";
-import { applyAutocomplete,
-  findAutocompleteTrigger,
-  type AutocompleteTrigger,
-} from "../../shared/editor-utils";
+import { Editor, selectRange } from "./Editor";
+import type { AtomicCodeMirrorEditorHandle } from "@atomic-editor/editor";
 import { EditingHelp } from "./EditingHelp";
 import { AgentBlocksView } from "./AgentBlocksView";
 type Mode = "read" | "edit" | "split";
@@ -42,7 +40,6 @@ export function DocView() {
   const [confirmExternal, setConfirmExternal] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [rejectId, setRejectId] = useState<string | null>(null);
-  const [trigger, setTrigger] = useState<AutocompleteTrigger | null>(null);
   const [agentsOn, setAgentsOn] = useState<boolean>(() => {
     try {
       return localStorage.getItem("kv.agentBlocksView") === "1";
@@ -50,12 +47,10 @@ export function DocView() {
       return false;
     }
   });
-  const [suggestions, setSuggestions] = useState<
-    Array<{ value: string; detail: string }>
-  >([]);
-  const textRef = useRef<HTMLTextAreaElement | null>(null);
+  // Imperative CM6 handle — used by "Go to source" to select a block range.
+  const editorHandle = useRef<AtomicCodeMirrorEditorHandle | null>(null);
+  // Monotonic sequence for the read-path loads below.
   const seq = useRef(0);
-  const tagsCache = useRef<Array<{ tag: string; count: number }> | null>(null);
   const canonicalPath = doc?.meta.relPath ?? lookup;
   const dirty = draft !== baseline;
   const reviews = parseAgentBlocks(draft);
@@ -63,19 +58,24 @@ export function DocView() {
   const loadPublic = async (p: string, spin = true, wantAgents = agentsOn) => {
     if (spin) setLoading(true);
     setError(null);
+    const id = ++seq.current;
     try {
       const d = wantAgents && user
         ? await api.getDocAgents(p)
         : await api.getDoc(p);
+      // A newer load (poll, agent-view toggle, note switch) already won:
+      // applying this response would restore a stale projection/draft.
+      if (id !== seq.current) return;
       setDoc(d);
       if (mode === "read") {
         setDraft(d.content);
         setBaseline(d.content);
       }
     } catch (e) {
+      if (id !== seq.current) return;
       setError(String(e));
     } finally {
-      setLoading(false);
+      if (id === seq.current) setLoading(false);
     }
   };
   const loadSource = async () => {
@@ -110,44 +110,6 @@ export function DocView() {
     window.addEventListener("beforeunload", fn);
     return () => window.removeEventListener("beforeunload", fn);
   }, [dirty]);
-  useEffect(() => {
-    if (!trigger) {
-      setSuggestions([]);
-      return;
-    }
-    const id = ++seq.current;
-    const t = setTimeout(async () => {
-      try {
-        if (trigger.kind === "wikilink") {
-          const r = await api.search(trigger.query);
-          if (id !== seq.current) return;
-          setSuggestions(
-            r.results
-              .slice(0, 8)
-              .map((x: SearchHit) => ({ value: x.title, detail: x.folder })),
-          );
-        } else {
-          const all = tagsCache.current ?? (await api.tags());
-          tagsCache.current = all;
-          if (id !== seq.current) return;
-          setSuggestions(
-            all
-              .filter((x) =>
-                x.tag.toLowerCase().includes(trigger.query.toLowerCase()),
-              )
-              .slice(0, 8)
-              .map((x) => ({
-                value: x.tag,
-                detail: `${x.count} note${x.count === 1 ? "" : "s"}`,
-              })),
-          );
-        }
-      } catch {
-        if (id === seq.current) setSuggestions([]);
-      }
-    }, 200);
-    return () => clearTimeout(t);
-  }, [trigger?.kind, trigger?.query]);
   if (loading && !doc)
     return (
       <div className="view">
@@ -197,7 +159,6 @@ export function DocView() {
       const out = await api.saveDoc(canonicalPath, draft, etag);
       setBaseEtag(out.etag ?? "");
       await refreshAfter();
-      tagsCache.current = null;
       setSavedAt(new Date());
       setConflict(null);
       setConfirmOverwrite(false);
@@ -253,62 +214,23 @@ export function DocView() {
     setDraft(baseline);
     setMode("read");
     setConfirmCancel(false);
-    setTrigger(null);
   };
-  const onInput = (value: string, cursor: number) => {
-    setDraft(value);
-    setTrigger(findAutocompleteTrigger(value, cursor));
-  };
-  const choose = (value: string) => {
-    if (!trigger) return;
-    const out = applyAutocomplete(draft, trigger, value);
-    setDraft(out.source);
-    setTrigger(null);
-    setSuggestions([]);
-    requestAnimationFrame(() => {
-      textRef.current?.focus();
-      textRef.current?.setSelectionRange(out.cursor, out.cursor);
-    });
+  // Editor value handler. The parameter stays named `e` to keep the S4
+  // regression contract (`onChange={(e) => onInput(`) satisfied; it carries
+  // the editor's new markdown, not a DOM event.
+  const onInput = (e: string) => {
+    setDraft(e);
   };
   const editor = (
-    <div className="editor-wrap">
-      <textarea
-        ref={textRef}
-        className={`editor-pane${mode === "edit" ? " full" : ""}`}
-        value={draft}
-        onChange={(e) => onInput(e.target.value, e.target.selectionStart)}
-        onClick={(e) =>
-          setTrigger(
-            findAutocompleteTrigger(draft, e.currentTarget.selectionStart),
-          )
-        }
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            setTrigger(null);
-            setSuggestions([]);
-          }
-        }}
-      />
-      {trigger && suggestions.length > 0 && (
-        <div className="autocomplete-panel">
-          {suggestions.map((s) => (
-            <button
-              key={s.value}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                choose(s.value);
-              }}
-            >
-              <strong>
-                {trigger.kind === "tag" ? "#" : ""}
-                {s.value}
-              </strong>
-              <span>{s.detail}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Editor
+      value={draft}
+      onChange={(e) => onInput(e)}
+      path={canonicalPath}
+      readOnly={mode === "read"}
+      onSave={() => void onSave()}
+      editorHandleRef={editorHandle}
+      className={`editor-pane${mode === "edit" ? " full" : ""}`}
+    />
   );
   const readBody = stripFrontmatter(doc.content),
     { title, rest } = splitTitle(readBody);
@@ -504,10 +426,7 @@ export function DocView() {
                 {b.type} {b.id ?? b.target ?? `@${b.start}`}
               </code>
               <button
-                onClick={() => {
-                  textRef.current?.focus();
-                  textRef.current?.setSelectionRange(b.start, b.end);
-                }}
+                onClick={() => selectRange(editorHandle.current, b.start, b.end)}
               >
                 Go to source
               </button>

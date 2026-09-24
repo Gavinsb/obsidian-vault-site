@@ -6,5 +6,6 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     environment: 'node',
     testTimeout: 20000,
+    server: { deps: { inline: ['@atomic-editor/editor'] } },
   },
 });
