@@ -29,6 +29,7 @@ import {
 } from "./write-pipeline.js";
 import { AuthError, type AuthService } from "./auth.js";
 import { AgentIdIndex } from "./agent-ids.js";
+import { buildCompletions, isCompletionKind } from "./completions.js";
 
 export function createApi(
   service: VaultService,
@@ -312,6 +313,23 @@ export function createApi(
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("Vary", "Cookie");
     res.json({ ids: await agentIds.reserved() });
+  });
+  r.get("/completions", async (req, res) => {
+    const kind = String(req.query.kind ?? "note");
+    if (!isCompletionKind(kind))
+      return res.status(400).json({ error: "unknown_kind" });
+    const query = String(req.query.q ?? "");
+    res.setHeader("Cache-Control", "public, max-age=30");
+    res.json({
+      kind,
+      query,
+      results: await buildCompletions(service, contents, {
+        kind,
+        query,
+        path: str(req.query.path),
+        limit: num(req.query.limit) ?? 8,
+      }),
+    });
   });
   r.get("/search", (req, res) => {
     const query = String(req.query.q ?? "");

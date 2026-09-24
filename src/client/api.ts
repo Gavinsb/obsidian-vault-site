@@ -138,6 +138,20 @@ export const api = {
   getDocAgents: (p: string) =>
     req<Document>(`/api/docs/${encodeURIComponent(p)}?agents=1`),
   agentIds: () => req<{ ids: string[] }>("/api/agent/ids"),
+  completions: (
+    kind: "note" | "tag" | "heading" | "blockref" | "callout",
+    q: string,
+    path?: string,
+    limit = 8,
+  ) =>
+    req<{
+      kind: string;
+      query: string;
+      results: { value: string; detail?: string; score: number }[];
+    }>(
+      `/api/completions?kind=${encodeURIComponent(kind)}&q=${encodeURIComponent(q)}&limit=${limit}` +
+        (path ? `&path=${encodeURIComponent(path)}` : ""),
+    ),
   getSource: (p: string) =>
     response<Document>(`/api/docs/${encodeURIComponent(p)}/source`),
   saveDoc: (p: string, content: string, etag: string) =>
