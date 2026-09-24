@@ -15,7 +15,7 @@ as e.g. `S4-3`.
 - **Status:** open — items collected, awaiting "start plan"
 - **Opened:** 2026-09-24 (collection) — review of `eb439a0`, focus header layout + article edit functions
 - **Decisions (Gav, 2026-09-24):** remove Split view entirely; add a Raw markdown source editor back as an option; ratings and favourite become read-only-mode affordances only (not available while editing).
-- **Items (12):**
+- **Items (14):**
   1. **S8-1 — Remove Split view:** drop the `split` mode (button, state, and the `.doc-body.split` grid CSS); the mode toggle becomes Read / Edit.
   2. **S8-2 — Add a Raw source editor option:** `Read | Edit | Raw`, where Raw shows the plain markdown source (simple textarea / plain CM6) with no live preview or block chrome; same Save/Cancel/ETag contract; remember the last choice (like `kv.agentBlocksView`).
   3. **S8-3 — Ratings + favourite only in read mode:** show "Rate this page" and ☆ only when `mode === "read"`; hide them while editing. Also removes the stale-ETag conflict they caused on the next Save (`mutate()` never refreshed `baseEtag`).
@@ -28,6 +28,8 @@ as e.g. `S4-3`.
   10. **S8-10 — Collapse the Properties box while editing:** hide it behind a `<details>` (or rail-only) in Read/Raw/Edit so the editor sits at the top.
   11. **S8-11 — Soften the validator Save gate:** block only when a blocking finding overlaps the changed range, or give admins an explicit "save anyway".
   12. **S8-12 — Minor polish:** show the note title (muted) near the breadcrumbs while editing, and add an unsaved-changes guard before Delete navigates away.
+  13. **S8-13 — Align the Editing-help text with the selected editor:** the help block describes a single editor regardless of mode; review and rewrite it so its guidance matches the editor actually in use (live-preview Edit vs Raw source), with only the shortcuts/triggers that apply there.
+  14. **S8-14 — Show Editing help only in edit mode:** it currently renders in the right rail whenever the reader is signed in (including read-only); render it only in Edit/Raw modes.
 - **Plan:** not started — awaiting "start plan"
 - **Build:** not started — awaiting "start build"
 
