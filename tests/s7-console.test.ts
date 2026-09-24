@@ -399,7 +399,7 @@ describe("S7-7 console placements share one state", () => {
     expect(rejected().disabled).toBe(false);
   });
 
-  it("keeps Accept/Reject draft-only (host-owned) and blocks Save on an edited legacy block", () => {
+  it("keeps Accept/Reject draft-only (host-owned); a `new` task needs no review", () => {
     const host = mountConsole(LEGACY_TASK);
     expect(host.querySelector(".agent-save-blocked")).toBeNull();
     const inline = host.querySelector<HTMLSelectElement>(".agent-inline-card .agent-status-select")!;
@@ -407,9 +407,9 @@ describe("S7-7 console placements share one state", () => {
     expect(inline.value).toBe("");
     changeSelect(inline, "new");
     expect(host.querySelector("#draft")?.textContent).toContain("> [!agent] status:new id: LEG001 target: document");
-    // The block is now session-edited and still has no review → blocking R4.
-    expect(host.querySelector(".agent-save-blocked")).not.toBeNull();
-    expect(host.querySelector(".agent-finding.blocking")).not.toBeNull();
+    // A `new` task has not been worked yet, so it needs no review block and Save is not blocked.
+    expect(host.querySelector(".agent-save-blocked")).toBeNull();
+    expect(host.querySelector(".agent-finding.blocking")).toBeNull();
   });
 });
 
@@ -486,15 +486,15 @@ describe("S7-6/S7-7 edit-scoped validation", () => {
   });
 
   it("keeps two tasks isolated: editing A never makes B block Save", () => {
-    const baseline = TWO_TASKS;
-    const source = `${TASK_A.replace("> task a body\n", "> task a body edited\n")}\n${TASK_B}`;
+    // A worked task (HRR) edited without a review must block; an untouched legacy task must not.
+    const taskA = "> [!agent] status:HRR ID: AAA111 TARGET: document\n> task a body\n";
+    const baseline = `${taskA}\n${TASK_B}`;
+    const source = `${taskA.replace("> task a body\n", "> task a body edited\n")}\n${TASK_B}`;
     const findings = validateAgentBlocks(source, { previousSource: baseline });
     const a = findings.filter((finding) => finding.blockId === "AAA111");
     const b = findings.filter((finding) => finding.blockId === "BBB222");
-    expect(a.length).toBeGreaterThan(0);
-    expect(b.length).toBeGreaterThan(0);
-    expect(b.every((finding) => finding.blocking === false)).toBe(true);
     expect(a.some((finding) => finding.blocking)).toBe(true);
+    expect(b.every((finding) => finding.blocking === false)).toBe(true);
   });
 
   it("exposes click-to-jump ranges and safe fixes for the panel", () => {

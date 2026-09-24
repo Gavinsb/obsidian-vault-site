@@ -353,7 +353,7 @@ Finding = {
 | **R1 — Well-formed callout** | Header matches `^>\s*\[!(agent\|agent-review)\][+-]?\s*(.*)$`; every body line is quoted (`^> ?`); no unquoted line terminates the block early | error |
 | **R2 — ID present & formatted** | `ID:` exists on both blocks; matches `^[A-Za-z0-9]{6}$` | error |
 | **R3 — ID uniqueness** | ID unique across vault `.md` files and `Agent_Sweep_Log.md`; not reused for different tasks | error |
-| **R4 — Pairing** | Exactly one `[!agent-review]` per parent ID; review sits immediately below its parent; no duplicates | error |
+| **R4 — Pairing** | Exactly one `[!agent-review]` per parent ID once the task has been worked; a task still at `new` (or legacy `pending`) has not been worked and needs no review; the review sits immediately below its parent; no duplicates | error |
 | **R5 — Status vocabulary** | Parent status ∈ {`new`,`HRR`,`apply`,`rejected`,`finished`,`cancelled`,`halted`}; exact case; never a bare number (state numbers are not task IDs) | error |
 | **R6 — Status authority** | Status read from the parent only; a review block carrying its own status is flagged | warning |
 | **R7 — Legacy migration** | Legacy `status:pending` → `new`; legacy review `Status: Pending Human Approval` + processed parent → `HRR`; `status:Human Approved` → `apply`; legacy review status field must be removed; existing ID preserved | warning + fix |

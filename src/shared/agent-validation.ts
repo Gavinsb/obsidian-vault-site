@@ -235,10 +235,14 @@ export function validateAgentBlocks(source: string, ctx: AgentValidationContext 
   }
 
   // R4 — exactly one review, directly after its parent (whitespace between callouts is allowed).
+  // A task still at `new` (or legacy `pending`) has not been worked yet, so it carries no review block.
   for (const parent of parents) {
     const id = parent.metadata.id;
     if (!id) continue;
     const matches = reviews.filter((review) => review.metadata.id === id);
+    const rawStatus = parent.metadata.status;
+    const effective = rawStatus ? canonicaliseStatus(rawStatus) ?? LEGACY_STATUS_MAP[rawStatus] : null;
+    if (matches.length === 0 && effective === "new") continue;
     if (matches.length !== 1) {
       emit("error", "R4", { start: parent.headerStart, end: parent.headerEnd }, `Task ${id} must have exactly one agent-review block; found ${matches.length}.`, parent);
     } else if (source.slice(parent.end, matches[0].start).trim() !== "") {
