@@ -1,6 +1,6 @@
 # Sprint S8 Implementation Plan — Editor Modes, Header Layout & Tables
 
-**Status:** PLANNED 2026-09-24 — Q1–Q2 answered; Q3–Q7 pending; awaiting "start build".
+**Status:** PLANNED 2026-09-24 — Q1–Q3 answered; Q4–Q7 pending; awaiting "start build".
 **Sprint:** S8 (20 items, `S8-1` … `S8-20`)
 **Opened:** 2026-09-24 (collection) · **Plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`
@@ -42,7 +42,7 @@ Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
 **Q2 — Table controls — ANSWERED 2026-09-24.** Option **(a)**: patch and vendor `@atomic-editor/editor@0.6.2` in-repo (a local workspace copy of the package under `vendor/`), extending its `table-widget` with visible row/column affordances while keeping the upstream shape so the change can be offered upstream later.
 
-**Q3 — S8-18 symptom confirmation.** On your device, does a single click/tap inside a table cell put the caret *in the cell* so you can type? Which device/browser were you on? My headless test could not confirm it either way (programmatic focus worked; a synthetic click focused the outer editor). A real check decides whether S8-18 is a bug fix or a discoverability fix.
+**Q3 — S8-18 symptom confirmation — ANSWERED 2026-09-24 (yes).** Clicking/tapping a table cell does **not** put the caret in the cell on Gav's device, so S8-18 is a **bug fix**, not a discoverability fix.
 
 **Q4 — S8-11 gate definition.** Is "overlap" = block-level (a blocking finding whose block intersects the changed line range in the draft) acceptable? And should the "save anyway" escape be **admin-only** (recommended) or any signed-in user?
 
@@ -93,7 +93,7 @@ Dependency order only; one release.
 - `src/shared/slash-menu.ts`: add a `Table` scaffold to `SCAFFOLDS` (new `Table` category) inserting a starter table and placing the caret in the first header cell; extend `slash-menu.test` coverage.
 - `src/shared/block-manipulation.ts`: add `table` to `TurnIntoId` + `TURN_INTO_OPTIONS` and `turnIntoBlockText()` (paragraph → starter table; table → paragraph / code).
 
-### W5 — Table editing controls — *S8-17, S8-18, S8-19* — **blocked on Q3**
+### W5 — Table editing controls — *S8-17, S8-18, S8-19*
 - Per Q2(a), vendor `@atomic-editor/editor@0.6.2` in-repo and patch `table-widget` to add visible row/column affordances (edge `+` / `⋮` handles or a caret-in-table toolbar) wired to the existing insert/delete row/column operations; point the app's import at the vendored copy.
 - Fix/verify cell focus on click and tap (Q3).
 - Define last-row/last-column behaviour (convert the table to a paragraph rather than silently no-op).
