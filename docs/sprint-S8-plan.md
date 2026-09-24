@@ -1,6 +1,6 @@
 # Sprint S8 Implementation Plan — Editor Modes, Header Layout & Tables
 
-**Status:** PLANNED 2026-09-24 — Q1 answered; Q2–Q7 pending; awaiting "start build".
+**Status:** PLANNED 2026-09-24 — Q1–Q2 answered; Q3–Q7 pending; awaiting "start build".
 **Sprint:** S8 (20 items, `S8-1` … `S8-20`)
 **Opened:** 2026-09-24 (collection) · **Plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`
@@ -30,6 +30,7 @@ Fix the note header layout and the editing experience surfaced by the 2026-09-24
 2. **Add a Raw source editor back as an option** (so the mode set is `Read | Edit | Raw`).
 3. **Ratings and favourite are read-only-mode only** — not available (and not shown) in Edit or Raw.
 4. **Raw mode is a dedicated source editor** built from the `@codemirror/*` packages already installed — plain markdown source with line numbers, and **no live preview, no block chrome, no agent console and no Properties editor**. `AtomicCodeMirrorEditor` stays the Edit-mode engine only. *(Answered 2026-09-24, Q1.)*
+5. **Table row/column controls are added by patching and vendoring the editor package in-repo** — a local workspace copy of `@atomic-editor/editor@0.6.2` whose `table-widget` gains the visible affordances (S8-17/18/19). Upstream later. *(Answered 2026-09-24, Q2 = option a.)*
 
 Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
@@ -39,11 +40,7 @@ Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
 **Q1 — Raw editor engine — ANSWERED 2026-09-24.** A dedicated `RawEditor` built from the already-installed `@codemirror/*` packages: markdown language, line numbers, **no** live preview, **no** block affordances, **no** agent console and **no Properties editor** — pure markdown source, with frontmatter left as text at the top.
 
-**Q2 — Table controls (S8-17/18/19) live in a vendored dependency.** The row/column menu is inside `@atomic-editor/editor@0.6.2` (`table-widget.js`, ~1.2k lines) in `node_modules`, and nothing in `src/` owns table UI. Choose:
-  - **(a)** patch + vendor the package in-repo (`vendor/atomic-editor` or `patch-package`) — fastest, keeps upstream shape;
-  - **(b)** upstream the changes and bump the dependency — cleanest, slowest, needs a release from the package;
-  - **(c)** write our own table extension in `src/` replacing `tables()` — full control, most work.
-  Recommendation: **(a)** for S8, with a note to upstream later.
+**Q2 — Table controls — ANSWERED 2026-09-24.** Option **(a)**: patch and vendor `@atomic-editor/editor@0.6.2` in-repo (a local workspace copy of the package under `vendor/`), extending its `table-widget` with visible row/column affordances while keeping the upstream shape so the change can be offered upstream later.
 
 **Q3 — S8-18 symptom confirmation.** On your device, does a single click/tap inside a table cell put the caret *in the cell* so you can type? Which device/browser were you on? My headless test could not confirm it either way (programmatic focus worked; a synthetic click focused the outer editor). A real check decides whether S8-18 is a bug fix or a discoverability fix.
 
@@ -96,8 +93,8 @@ Dependency order only; one release.
 - `src/shared/slash-menu.ts`: add a `Table` scaffold to `SCAFFOLDS` (new `Table` category) inserting a starter table and placing the caret in the first header cell; extend `slash-menu.test` coverage.
 - `src/shared/block-manipulation.ts`: add `table` to `TurnIntoId` + `TURN_INTO_OPTIONS` and `turnIntoBlockText()` (paragraph → starter table; table → paragraph / code).
 
-### W5 — Table editing controls — *S8-17, S8-18, S8-19* — **blocked on Q2 + Q3**
-- Per Q2, add visible row/column affordances (edge `+` / `⋮` handles or a caret-in-table toolbar) wired to the existing insert/delete row/column operations.
+### W5 — Table editing controls — *S8-17, S8-18, S8-19* — **blocked on Q3**
+- Per Q2(a), vendor `@atomic-editor/editor@0.6.2` in-repo and patch `table-widget` to add visible row/column affordances (edge `+` / `⋮` handles or a caret-in-table toolbar) wired to the existing insert/delete row/column operations; point the app's import at the vendored copy.
 - Fix/verify cell focus on click and tap (Q3).
 - Define last-row/last-column behaviour (convert the table to a paragraph rather than silently no-op).
 
