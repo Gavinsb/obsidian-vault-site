@@ -24,6 +24,8 @@ export interface PropertiesEditorProps {
   onChange?: (next: string) => void;
   readOnly?: boolean;
   className?: string;
+  /** Omit the internal "Properties" heading (the host supplies its own). */
+  hideHead?: boolean;
 }
 
 export function PropertiesEditor({
@@ -31,6 +33,7 @@ export function PropertiesEditor({
   onChange,
   readOnly = false,
   className,
+  hideHead = false,
 }: PropertiesEditorProps) {
   const parsed = useMemo(() => parseProperties(source), [source]);
   const [newKey, setNewKey] = useState("");
@@ -64,14 +67,16 @@ export function PropertiesEditor({
       className={`properties-editor${className ? ` ${className}` : ""}`}
       aria-label="Note properties"
     >
-      <div className="properties-head">
-        <h4>Properties</h4>
-        {!parsed.hasFrontmatter && (
-          <span className="properties-hint muted">
-            No frontmatter yet — add a property to create one.
-          </span>
-        )}
-      </div>
+      {!hideHead && (
+        <div className="properties-head">
+          <h4>Properties</h4>
+          {!parsed.hasFrontmatter && (
+            <span className="properties-hint muted">
+              No frontmatter yet — add a property to create one.
+            </span>
+          )}
+        </div>
+      )}
       <div className="properties-rows">
         {parsed.rows.length === 0 && (
           <p className="properties-empty muted">No properties.</p>

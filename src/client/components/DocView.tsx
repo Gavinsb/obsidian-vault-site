@@ -514,11 +514,10 @@ export function DocView() {
                 <summary>File info</summary>
                 <Meta meta={meta} />
               </details>
-              <PropertiesEditor
-                source={doc.content}
-                readOnly
-                className="article-properties"
-              />
+              <details className="collapsible article-properties">
+                <summary>Properties</summary>
+                <PropertiesEditor source={doc.content} readOnly hideHead />
+              </details>
               {canEdit && agentsOn ? (
                 <AgentBlocksView content={rest} baseFolder={meta.folder} />
               ) : (
@@ -574,6 +573,9 @@ export function DocView() {
           <section className="context-block">
             <h4>File info</h4>
             <Meta meta={meta} />
+          </section>
+          <section className="context-block" aria-label="Note properties">
+            <PropertiesEditor source={doc.content} readOnly />
           </section>
           {canEdit && <EditingHelp />}
           <section className="context-block">
