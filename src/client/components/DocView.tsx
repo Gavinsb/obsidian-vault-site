@@ -6,6 +6,7 @@ import { useAuth } from "../auth";
 import { stripFrontmatter, splitTitle } from "./Markdown";
 import { MarkdownWithEmbeds } from "./Embeds";
 import { PropertiesEditor } from "./PropertiesEditor";
+import { parseProperties } from "../../shared/properties";
 import { RatingStars } from "./RatingStars";
 import { Breadcrumbs } from "./Breadcrumbs";
 import {
@@ -70,6 +71,11 @@ export function DocView() {
   const canonicalPath = doc?.meta.relPath ?? lookup;
   const dirty = draft !== baseline;
   const canEdit = !!user;
+  // A note with no frontmatter keys shows no Properties surface (article or rail).
+  const hasProperties = useMemo(
+    () => parseProperties(doc?.content ?? "").rows.length > 0,
+    [doc?.content],
+  );
   // S7-6/S7-7 — one console store per document. The side panel and the inline
   // cards read this same parsed state, so they cannot disagree (LOCKED Q9).
   // Accept/Reject stay draft-only: they never touch the network.
@@ -514,10 +520,12 @@ export function DocView() {
                 <summary>File info</summary>
                 <Meta meta={meta} />
               </details>
-              <details className="collapsible article-properties">
-                <summary>Properties</summary>
-                <PropertiesEditor source={doc.content} readOnly hideHead />
-              </details>
+              {hasProperties && (
+                <details className="collapsible article-properties">
+                  <summary>Properties</summary>
+                  <PropertiesEditor source={doc.content} readOnly hideHead />
+                </details>
+              )}
               {canEdit && agentsOn ? (
                 <AgentBlocksView content={rest} baseFolder={meta.folder} />
               ) : (
@@ -574,9 +582,11 @@ export function DocView() {
             <h4>File info</h4>
             <Meta meta={meta} />
           </section>
-          <section className="context-block" aria-label="Note properties">
-            <PropertiesEditor source={doc.content} readOnly />
-          </section>
+          {hasProperties && (
+            <section className="context-block" aria-label="Note properties">
+              <PropertiesEditor source={doc.content} readOnly />
+            </section>
+          )}
           {canEdit && <EditingHelp />}
           <section className="context-block">
             <h4>Backlinks ({doc.backlinks.length})</h4>
