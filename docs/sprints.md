@@ -10,28 +10,33 @@ as e.g. `S4-3`.
 
 ---
 
-## S7 — building (open)
+## S7 — complete ✅
 
-- **Status:** build authorised 2026-09-24; Wave 0 complete (Atomic Editor adopt+extend); Wave 1 shared logic in progress
+- **Status:** complete ✅ — all 13 items and nine waves (0–8) implemented and verified; the release gate is closing (docs landed, deploy + release commit still pending)
 - **Opened:** 2026-09-22 (collection) · **Unified plan:** 2026-09-24
+- **Completed:** 2026-09-24
+- **Planning finalized:** 2026-09-24 — Q1–Q9 locked; the former MVP/Phase 2 scopes merged into one 13-item, nine-wave release; the S7-1 foundation spike validated **adopt + extend `@atomic-editor/editor` v0.6.2** (MIT, OFM byte round-trip, +46 KB gzip over direct CM6).
 - **Specification:** [`docs/wysiwyg-editor-spec.md`](wysiwyg-editor-spec.md) — v4.1 unified WYSIWYG editor + Agent Block Console design
 - **Detailed plan:** [`docs/sprint-S7-plan.md`](sprint-S7-plan.md)
-- **Goal:** replace the raw textarea with one CodeMirror 6 block-aware WYSIWYG release containing the complete Agent Block Console, server-ranked completions, validator R1–R15, structured Properties, embeds/preview, and full block manipulation.
-- **Decisions:** Q1–Q9 remain locked. Former Phase 1/MVP and Phase 2 are merged into one S7 release. Final completions use the new server endpoint; validator ships R1–R15; drag/drop is functional (before/after/nest only); the ID index is vault-wide; two-column layout and live Mermaid rendering remain excluded.
+- **Decisions:** Q1–Q9 binding — status dropdown lists all statuses but enables only legal transitions; console may set `apply`; console never sets `finished` (sweep-only); completions move to the new server-ranked endpoint; validator errors block Save only for session-edited blocks; single-user; edited headers are canonical while untouched legacy headers pass through byte-for-byte; reviewer feedback lives in a parseable `**Reviewer feedback**` section; panel + inline share one parsed state. Consolidation resolutions: drops are before/after/nest only (no two-column), Mermaid is a fenced scaffold with no live renderer, the ID index is vault-wide (vault + `Agent_Sweep_Log.md`), and the validator ships complete at R1–R15.
 - **Items (13):**
-  1. **S7-1 — Foundation verdict spike** (direct CM6 vs prior art; evidence, no product code)
-  2. **S7-2 — Block-boundary detector** (shared, nested/fence/CRLF-safe, byte-exact)
-  3. **S7-3 — Unified server-ranked completions** (notes/tags/headings/block refs/callout types; keyboard + caret UI)
-  4. **S7-4 — Agent status, vault-wide ID index, validator R1–R15**
-  5. **S7-5 — CM6 editor core** (live inline rendering, cursor-reveals-source, core OFM)
-  6. **S7-6 — Agent Block Console** (legal statuses, ID/TARGET/pairing/feedback/halt/accept-reject)
-  7. **S7-7 — Console placement + complete validator UI** (side panel + inline, edit-scoped Save gate)
-  8. **S7-8 — Structured Properties/frontmatter editor**
-  9. **S7-9 — Embeds, block refs, masked hover preview**
-  10. **S7-10 — Gutter, bubble toolbar, slash menu, turn-into**
-  11. **S7-11 — Drag/drop, nested drag, multi-select, bulk actions**
-  12. **S7-12 — Save/concurrency/masking/safety integration**
-  13. **S7-13 — Verification, docs, deployment, commit/push**
+  1. **S7-1 — Foundation verdict spike** (direct CM6 vs prior art; evidence, no product code) — verdict: adopt `@atomic-editor/editor`
+  2. **S7-2 — Block-boundary detector** (`block-detect.ts`; shared, nested/fence/CRLF-safe, byte-exact)
+  3. **S7-3 — Unified server-ranked completions** (`GET /api/completions`; notes/tags/headings/block refs/callout types; keyboard + caret UI)
+  4. **S7-4 — Agent status, vault-wide ID index, validator R1–R15** (`agent-status.ts`, `agent-validation.ts`, session-gated `GET /api/agent/ids`)
+  5. **S7-5 — CM6 editor core** (`Editor.tsx` replaces the textarea; live inline rendering, cursor-reveals-source, core OFM)
+  6. **S7-6 — Agent Block Console** (`AgentConsole.tsx` + span splices; legal statuses, ID/TARGET/pairing/feedback/halt/accept-reject)
+  7. **S7-7 — Console placement + complete validator UI** (side panel + inline share one state; edit-scoped Save gate; findings panel)
+  8. **S7-8 — Structured Properties/frontmatter editor** (byte-preserving splices; read-only server-owned `updated`)
+  9. **S7-9 — Embeds, block refs, masked hover preview** (`![[note]]`, `![[image|300]]`, `^id` / `[[Note#^id]]`, `GET /api/note-preview`)
+  10. **S7-10 — Gutter, bubble toolbar, slash menu, turn-into** (hover `+`/drag handle with no text shift; eight inline marks; eight scaffold categories)
+  11. **S7-11 — Drag/drop, nested drag, multi-select, bulk actions** (text-range splices, one transaction per op, native undo)
+  12. **S7-12 — Save/concurrency/masking/safety integration** (draft-only edits, exactly one If-Match write, `412` conflict, endpoint auth/masking)
+  13. **S7-13 — Verification, docs, deployment, commit/push** (this entry; release gate)
+- **Build (nine waves, 0–8):** W0/S7-1 foundation spike (adopt Atomic, off `master`); W1 `28390c5` block detector + status model + validator R1–R15 + reserved-ID index; W2 `0e0a42c` unified server-ranked completions endpoint; W3 `698238e` + `8c7f5f0` CM6 editor core replacing the textarea (plus a regression guard after deduping `@lezer/common`); W4 `28328e2` agent console, splice helpers, findings panel; W5 `99858ef` properties editor, embeds/block refs, masked note preview; W6 `91fbe80` block affordances, slash menu, block manipulation with undo fidelity; W7 `b1517a2` save/concurrency/masking integration and reserved-ID seeding for slash-inserted agent blocks; W8 verification + docs (this entry), then deploy and release commit.
+- **Verification:** `npx tsc --noEmit` clean; Vitest **278/278 across 30 files**; per-wave gates recorded in the plan (lint clean, production build passed, QA 27/27). Wave 8's live acceptance (deploy, tunnel endpoints, light/dark, public masking) and `git diff --check` still run with the release commit.
+- **Deployment:** pending — `kv-microsite.service` restart and local/tunnel acceptance are part of the Wave 8 release gate and have not been run yet.
+- **Commit(s):** `28390c5` (W1) · `0e0a42c` (W2) · `698238e` + `8c7f5f0` (W3) · `28328e2` (W4) · `99858ef` (W5) · `91fbe80` (W6) · `b1517a2` (W7). **Wave 8's release commit is not yet made — pending; record the final S7 commit here once known** (plan commits: `4d57f12` open collection, `82c5f38` unified plan).
 - **Out of scope:** CRDT/multi-user collaboration; inline comments/history; two-column layout; live Mermaid/KaTeX rendering; plugin block API; model execution; auth redesign; multi-vault indexing.
 
 ---

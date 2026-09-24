@@ -1,6 +1,6 @@
 # Sprint S7 Implementation Plan — Unified WYSIWYG Editor + Agent Block Console
 
-**Status:** build authorised 2026-09-24 — Wave 0 complete; Wave 1 shared logic in progress
+**Status:** all nine waves (0–8) implemented and verified 2026-09-24 — release gate in progress: docs updated, final deploy and release commit/push still to land. S7 is not released until Wave 8's deploy and commit complete.
 **Sprint:** S7
 **Opened:** 2026-09-22 (collection) · **Unified plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`

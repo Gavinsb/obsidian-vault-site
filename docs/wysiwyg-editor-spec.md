@@ -6,7 +6,7 @@
 **Prepared for:** Gavin Bergheim
 **Date:** 24 September 2026
 **Project:** `obsidian-vault-site` ("Doug KX" microsite)
-**Status:** specification only — no implementation authorised
+**Status:** implemented — delivered as sprint S7 (see `sprint-S7-plan.md` and `sprints.md`); this document remains the design reference for the shipped editor.
 
 ---
 

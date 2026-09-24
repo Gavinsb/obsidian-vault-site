@@ -24,9 +24,10 @@ function Section({
 }
 
 /**
- * In-product reference for signed-in editors. Summarises the Markdown the
- * editor understands, the autocomplete shortcuts, and how agent blocks work.
- * Collapsed by default and placed between File info and Backlinks.
+ * In-product reference for signed-in editors. Summarises the WYSIWYG surface,
+ * the block commands, the autocomplete and slash menus, structured content,
+ * and how agent blocks work. Collapsed by default and placed between File info
+ * and Backlinks.
  */
 export function EditingHelp() {
   const [open, setOpen] = useState(false);
@@ -108,12 +109,59 @@ export function EditingHelp() {
             </ul>
           </Section>
 
+          <Section title="The editor &amp; block commands">
+            <ul className="edit-help-list">
+              <li>
+                <strong>Live Markdown:</strong> the editor is a CodeMirror 6
+                WYSIWYG surface that renders Markdown as you type — headings,
+                emphasis, lists, quotes, links, tags, highlights and comments.
+                The raw delimiters reappear when the caret enters them, so you
+                can always edit the source.
+              </li>
+              <li>
+                <strong>Markdown is the file:</strong> what you see is the
+                plain text that gets saved. A note you do not change is written
+                back byte-for-byte, including syntax the editor does not render.
+                Mermaid stays fenced source — there is no live diagram view.
+              </li>
+              <li>
+                <strong>Slash menu:</strong> type <code>/</code> at the start of
+                an empty block for a filterable insert menu (<code>↑</code>/
+                <code>↓</code> to move, <code>Enter</code>/<code>Tab</code> to
+                insert, <code>Esc</code> to dismiss). It offers CommonMark
+                blocks (text, headings 1–3, bulleted/numbered list, quote, code
+                block, divider), Callout, Embed note, Embed block, Properties,
+                Tag, Task, Mermaid, and Agent instruction/review.
+              </li>
+              <li>
+                <strong>Selection toolbar:</strong> select text for a floating
+                toolbar with bold, italic, strikethrough, inline code, link,
+                wikilink, highlight and comment. <code>Esc</code> or a click
+                elsewhere dismisses it.
+              </li>
+              <li>
+                <strong>Block gutter:</strong> every block shows a{" "}
+                <code>+</code> (insert below) and a drag handle in the reserved
+                left margin — the gutter never shifts your text. Drag to
+                reorder; drop <em>before</em>, <em>after</em> or <em>nest</em>{" "}
+                (there are no side-by-side drop zones).
+              </li>
+              <li>
+                <strong>Multiple blocks:</strong> block operations act on whole
+                blocks — a contiguous selection snaps to block boundaries, so an
+                action never splits a block in half. Every block change is a
+                single step, so <code>Ctrl/Cmd+Z</code> restores the exact
+                previous source.
+              </li>
+            </ul>
+          </Section>
+
           <Section title="Autocomplete">
             <ul className="edit-help-list">
               <li>
                 <strong>Wikilinks:</strong> type <code>[[</code> and keep
-                typing; a list of matching note titles appears. Click one (or
-                press enter on a suggestion) to insert{" "}
+                typing; matching note titles appear anchored at the caret.
+                Choose one (or press <code>Enter</code>) to insert{" "}
                 <code>[[Note Name]]</code>.
               </li>
               <li>
@@ -123,17 +171,61 @@ export function EditingHelp() {
                 valid too and becomes indexed after you save.
               </li>
               <li>
-                <strong>Dismiss:</strong> press <code>Esc</code> to close the
-                suggestions.
+                <strong>Headings, block refs &amp; callouts:</strong>{" "}
+                <code>[[Note#</code> suggests that note's headings,{" "}
+                <code>[[Note#^</code> suggests its block ids, and{" "}
+                <code>&gt; [!</code> suggests callout types.
               </li>
               <li>
-                <strong>Suppressed inside code:</strong> autocomplete does not
+                <strong>Keys:</strong> <code>↑</code>/<code>↓</code> move,{" "}
+                <code>Enter</code> accepts, <code>Esc</code> dismisses, and{" "}
+                <code>Ctrl/Cmd+Space</code> re-opens the list.
+              </li>
+              <li>
+                <strong>Suppressed inside code:</strong> completion does not
                 fire inside inline <code>`code`</code> or fenced code blocks.
               </li>
             </ul>
           </Section>
 
-          <Section title="Agent instructions">
+          <Section title="Properties">
+            <ul className="edit-help-list">
+              <li>
+                The Properties panel edits the YAML frontmatter as key/value
+                rows. Key order, quoting style, comments and every untouched
+                byte are preserved; an edit rewrites only that one value.
+              </li>
+              <li>
+                <strong>Server-owned <code>updated</code>:</strong> the{" "}
+                <code>updated</code> field is shown but never editable — the
+                server sets it on every successful save.
+              </li>
+            </ul>
+          </Section>
+
+          <Section title="Embeds &amp; block refs">
+            <ul className="edit-help-list">
+              <li>
+                <strong>Note embed:</strong> <code>![[Note]]</code> transcludes
+                another note inline (one level deep).
+              </li>
+              <li>
+                <strong>Image embed:</strong> <code>![[image.png|300]]</code>{" "}
+                renders the image at that width.
+              </li>
+              <li>
+                <strong>Block refs:</strong> a trailing <code>^id</code> anchors
+                a block, and <code>[[Note#^id]]</code> links to it.
+              </li>
+              <li>
+                <strong>Masked previews:</strong> embeds and previews load
+                through the public preview endpoint, which masks agent blocks —
+                anonymous readers never see them.
+              </li>
+            </ul>
+          </Section>
+
+          <Section title="Agent blocks &amp; console">
             <p>
               Add an agent instruction block anywhere in the note to request
               research or drafting. The microsite never runs a model itself:
@@ -163,11 +255,33 @@ export function EditingHelp() {
                 <code>&gt; [!agent-review] ID: … STATUS: ready</code>.
               </li>
               <li>
-                <strong>Review in the editor:</strong> when a staged review is
-                present, the Agent staging panel appears. <em>Accept</em>{" "}
-                converts its proposed content into ordinary Markdown in your
-                draft; <em>Reject</em> removes the block from your draft. Both
-                only change the draft.
+                <strong>Agent Block Console:</strong> in Edit/Split mode an
+                Agent Tasks side panel lists every block, and each block also
+                gets an inline card — both drive one shared state. It shows the
+                status dropdown, ID, TARGET, pairing, and the instruction/review
+                bodies.
+              </li>
+              <li>
+                <strong>Status transitions:</strong> the dropdown lists all
+                seven statuses but enables only legal moves.{" "}
+                <code>finished</code> is sweep-only and always disabled; setting{" "}
+                <code>rejected</code> requires a{" "}
+                <strong>Reviewer feedback</strong> section first.
+              </li>
+              <li>
+                <strong>ID &amp; review ID:</strong> generate or edit the
+                six-character ID; editing it rewrites the mirrored ID on the
+                review block too.
+              </li>
+              <li>
+                <strong>Findings panel:</strong> lists validator findings with
+                click-to-jump. <em>Accept</em>/<em>Reject</em> convert or remove
+                the staged review in your draft only.
+              </li>
+              <li>
+                <strong>Save gate:</strong> Save is blocked only by errors on
+                blocks you edited in this session. Pre-existing legacy findings
+                are advisory and never block Save.
               </li>
               <li>
                 <strong>Save to persist:</strong> nothing is written to the
@@ -183,7 +297,12 @@ export function EditingHelp() {
           <Section title="Saving &amp; conflicts">
             <ul className="edit-help-list">
               <li>
-                Edit mode never auto-saves: click <strong>Save</strong>.
+                Edit mode never auto-saves: click <strong>Save</strong> (or{" "}
+                <code>Ctrl/Cmd+S</code>).
+              </li>
+              <li>
+                Properties, block moves and console changes are all just draft
+                edits — one Save writes them all in a single request.
               </li>
               <li>
                 If the note changed elsewhere while you were editing, save fails
