@@ -1,6 +1,6 @@
 # Sprint S8 Implementation Plan — Editor Modes, Header Layout & Tables
 
-**Status:** PLANNED 2026-09-24 — awaiting "start build".
+**Status:** PLANNED 2026-09-24 — Q1 answered; Q2–Q7 pending; awaiting "start build".
 **Sprint:** S8 (20 items, `S8-1` … `S8-20`)
 **Opened:** 2026-09-24 (collection) · **Plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`
@@ -29,6 +29,7 @@ Fix the note header layout and the editing experience surfaced by the 2026-09-24
 1. **Remove Split view** entirely — no third split pane.
 2. **Add a Raw source editor back as an option** (so the mode set is `Read | Edit | Raw`).
 3. **Ratings and favourite are read-only-mode only** — not available (and not shown) in Edit or Raw.
+4. **Raw mode is a dedicated source editor** built from the `@codemirror/*` packages already installed — plain markdown source with line numbers, and **no live preview, no block chrome, no agent console and no Properties editor**. `AtomicCodeMirrorEditor` stays the Edit-mode engine only. *(Answered 2026-09-24, Q1.)*
 
 Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
@@ -36,7 +37,7 @@ Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
 ## 3. Open questions — answer before `start build`
 
-**Q1 — Raw editor engine.** Recommendation: a small dedicated `RawEditor` built from the already-installed `@codemirror/*` packages (markdown language, line numbers, no inline preview, no block affordances, no agent console), so Raw is genuinely plain source. Alternative: reuse `AtomicCodeMirrorEditor` if a preview-suppression switch is added. Also: should Raw show the Properties editor, or pure source only (frontmatter stays as text at the top)?
+**Q1 — Raw editor engine — ANSWERED 2026-09-24.** A dedicated `RawEditor` built from the already-installed `@codemirror/*` packages: markdown language, line numbers, **no** live preview, **no** block affordances, **no** agent console and **no Properties editor** — pure markdown source, with frontmatter left as text at the top.
 
 **Q2 — Table controls (S8-17/18/19) live in a vendored dependency.** The row/column menu is inside `@atomic-editor/editor@0.6.2` (`table-widget.js`, ~1.2k lines) in `node_modules`, and nothing in `src/` owns table UI. Choose:
   - **(a)** patch + vendor the package in-repo (`vendor/atomic-editor` or `patch-package`) — fastest, keeps upstream shape;
