@@ -10,6 +10,29 @@ as e.g. `S4-3`.
 
 ---
 
+## S8 — open 📋
+
+- **Status:** open — items collected, awaiting "start plan"
+- **Opened:** 2026-09-24 (collection) — review of `eb439a0`, focus header layout + article edit functions
+- **Decisions (Gav, 2026-09-24):** remove Split view entirely; add a Raw markdown source editor back as an option; ratings and favourite become read-only-mode affordances only (not available while editing).
+- **Items (12):**
+  1. **S8-1 — Remove Split view:** drop the `split` mode (button, state, and the `.doc-body.split` grid CSS); the mode toggle becomes Read / Edit.
+  2. **S8-2 — Add a Raw source editor option:** `Read | Edit | Raw`, where Raw shows the plain markdown source (simple textarea / plain CM6) with no live preview or block chrome; same Save/Cancel/ETag contract; remember the last choice (like `kv.agentBlocksView`).
+  3. **S8-3 — Ratings + favourite only in read mode:** show "Rate this page" and ☆ only when `mode === "read"`; hide them while editing. Also removes the stale-ETag conflict they caused on the next Save (`mutate()` never refreshed `baseEtag`).
+  4. **S8-4 — Fix the read→edit auto-refresh race:** stop the 4 s read poll before awaiting the source fetch and bump the request `seq` in `loadSource`, so a late poll response cannot overwrite the fresh draft with the masked public view (which silently dropped agent blocks).
+  5. **S8-5 — Flatten the top chrome:** make the doc toolbar sticky, move Save/Cancel into it, and fold the rating into the rail so editing begins at the text.
+  6. **S8-6 — De-duplicate File info / Properties:** keep them in the right rail only in read mode; drop the duplicate collapsible cards inside the article.
+  7. **S8-7 — Tidy the top-right controls:** keep the mode toggle + Save/Cancel visible; move "Show agent blocks", ☆ Favourite and Delete into a "⋯" overflow menu; gate the agent-blocks toggle to admins.
+  8. **S8-8 — Hide the mode toggle for signed-out readers:** no lone, unswitchable "Read" pill.
+  9. **S8-9 — Mobile breadcrumb alignment:** left-align the breadcrumb row instead of `justify-content: space-between` on `.toolbar-left` / `.toolbar-right`.
+  10. **S8-10 — Collapse the Properties box while editing:** hide it behind a `<details>` (or rail-only) in Read/Raw/Edit so the editor sits at the top.
+  11. **S8-11 — Soften the validator Save gate:** block only when a blocking finding overlaps the changed range, or give admins an explicit "save anyway".
+  12. **S8-12 — Minor polish:** show the note title (muted) near the breadcrumbs while editing, and add an unsaved-changes guard before Delete navigates away.
+- **Plan:** not started — awaiting "start plan"
+- **Build:** not started — awaiting "start build"
+
+---
+
 ## S7 — complete ✅
 
 - **Status:** released ✅ — all 13 items and nine waves (0–8) implemented, verified and deployed 2026-09-24
