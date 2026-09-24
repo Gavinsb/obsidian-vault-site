@@ -767,9 +767,10 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .properties-add { display: flex; gap: 6px; margin-top: 8px; }
 .property-key-input { width: 140px; background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 8px; }
 .properties-add .property-value-input { flex: 1; }
-.article-properties { margin: 0 0 16px; }
+/* The read-view collapsible matches the File info card: the summary sits inside the box. */
+.article-properties { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin: 0 0 16px; }
 /* The read-view collapsible and the right-rail widget share one editor. */
-.article-properties .properties-editor { margin: 8px 0 0; }
+.article-properties .properties-editor { background: none; border: 0; padding: 0; margin: 8px 0 0; }
 .context-block .properties-editor { background: none; border: 0; padding: 0; margin: 0; }
 .context-block .properties-head { margin-bottom: 6px; }
 
