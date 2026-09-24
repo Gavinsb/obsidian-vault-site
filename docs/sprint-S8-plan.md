@@ -46,11 +46,36 @@ Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
 **Q3 — S8-18 symptom confirmation — ANSWERED 2026-09-24 (yes).** Clicking/tapping a table cell does **not** put the caret in the cell on Gav's device, so S8-18 is a **bug fix**, not a discoverability fix.
 
-**Q4 — S8-11 gate definition.** Is "overlap" = block-level (a blocking finding whose block intersects the changed line range in the draft) acceptable? And should the "save anyway" escape be **admin-only** (recommended) or any signed-in user?
+**Q4 — S8-11 validator Save gate — detail (decision needed).**
+Today `isSaveBlocked()` disables Save whenever *any* finding is `blocking`, with no override; S7 decision #5 already scopes *blocking* to agent blocks edited this session, with untouched legacy errors advisory. S8-11 narrows it further so an unrelated edit is never blocked.
+
+Proposed behaviour:
+1. Compute the **changed block set**: run `detectBlocks()` over `baseline` and `draft` and collect blocks whose text differs (plus inserted/deleted blocks).
+2. A `blocking` finding is **enforced only if its block intersects a changed block**; findings on untouched blocks stay visible but advisory.
+3. Save is disabled only while an enforced blocking finding exists.
+4. Escape hatch (proposed): an **admin-only “Save anyway”** appears when the only remaining blocking findings are advisory-after-narrowing; it writes the draft as-is, keeps the findings panel visible and shows a warning flash. A finding that is *enforced* (sitting on a changed block) stays hard-blocked with no override.
+
+Decisions: **(a)** accept block-level overlap; **(b)** admin-only override vs any signed-in user vs none; **(c)** confirm enforced findings stay un-overridable.
 
 **Q5 — S8-6 scope — ANSWERED 2026-09-24 (both).** Drop **both** File info and Properties collapsibles from the read article; the right rail keeps them.
 
-**Q6 — S8-7 overflow contents.** Confirm the `⋯` menu holds **Show agent blocks** and **Delete** (Favourite moves next to the rating and only shows in read mode). Any other action to move?
+**Q6 — S8-7 toolbar overflow — detail (decision needed).**
+Controls after the other decisions are applied: mode toggle `Read | Edit | Raw` (hidden when signed out); rating bar + ☆ Favourite (read mode only); Save/Cancel in the toolbar (Edit/Raw only).
+
+Proposed placement:
+
+| Mode | Toolbar |
+| --- | --- |
+| Read | mode toggle · rating + ☆ inline · `⋯` |
+| Edit / Raw | mode toggle · Save · Cancel · `⋯` (rating and ☆ hidden) |
+| Signed out | nothing — no toggle, no `⋯` |
+
+`⋯` contents options:
+- **A (recommended):** Show agent blocks (admins only) + Delete; **Favourite stays inline** next to the rating. Delete opens the existing confirm panel instead of swapping two buttons in place.
+- **B:** Show agent blocks (admin) + Favourite + Delete; the rating bar keeps stars only.
+- **C:** Show agent blocks (admin) + Delete, and Favourite is dropped from the read view entirely.
+
+Decisions: pick A/B/C; confirm the agent-blocks toggle is admins-only; confirm Delete keeps the existing confirm panel (no in-toolbar two-button swap).
 
 **Q7 — Release shape — ANSWERED 2026-09-24 (one release).** All waves ship together; no checkpoint after W1.
 
