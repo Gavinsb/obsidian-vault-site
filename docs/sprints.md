@@ -10,9 +10,9 @@ as e.g. `S4-3`.
 
 ---
 
-## S7 — planned (open)
+## S7 — building (open)
 
-- **Status:** unified specification and detailed plan complete; **no implementation authorised until `start build`**
+- **Status:** build authorised 2026-09-24; Wave 0 complete (Atomic Editor adopt+extend); Wave 1 shared logic in progress
 - **Opened:** 2026-09-22 (collection) · **Unified plan:** 2026-09-24
 - **Specification:** [`docs/wysiwyg-editor-spec.md`](wysiwyg-editor-spec.md) — v4.1 unified WYSIWYG editor + Agent Block Console design
 - **Detailed plan:** [`docs/sprint-S7-plan.md`](sprint-S7-plan.md)

@@ -28,6 +28,7 @@ import {
   parseIfMatch,
 } from "./write-pipeline.js";
 import { AuthError, type AuthService } from "./auth.js";
+import { AgentIdIndex } from "./agent-ids.js";
 
 export function createApi(
   service: VaultService,
@@ -39,6 +40,7 @@ export function createApi(
   r.use(auth.middleware);
   r.use(auth.originGuard);
   const contents = new Map<string, string>();
+  const agentIds = new AgentIdIndex(service);
   const requireJson = (req: Request, res: Response, next: NextFunction) =>
     req.is("application/json")
       ? next()
@@ -304,6 +306,13 @@ export function createApi(
     res.json({ ...doc, meta: publicMeta, content });
   });
 
+  r.get("/agent/ids", auth.requireUser, async (_req, res) => {
+    // Session-gated reserved-ID set (vault notes + sweep log). IDs only —
+    // never agent instructions, proposals or note content.
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Vary", "Cookie");
+    res.json({ ids: await agentIds.reserved() });
+  });
   r.get("/search", (req, res) => {
     const query = String(req.query.q ?? "");
     const filters: SearchFilters = {

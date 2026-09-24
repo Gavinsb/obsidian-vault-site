@@ -40,6 +40,8 @@ Replace the `<textarea>` with a **CodeMirror 6 (CM6) editor** running standalone
 
 **Why CM6 (unchanged from v3.0, and still correct):** CM6 is a plain-text editor, not a rich-text tree. That is exactly the model needed to round-trip arbitrary OFM without a lossy JSON↔markdown conversion step. Its Lezer markdown grammar is the same lineage Obsidian uses, so a custom grammar extension can add OFM syntax (`[[…]]`, `![[…]]`, `> [!type]`, `^block-id`, frontmatter) without fighting an unrelated schema. It virtualises the viewport, so long notes stay smooth.
 
+**Foundation verdict (S7-1):** adopt and extend `@atomic-editor/editor` v0.6.2 rather than recreating its preview layer directly. Its React wrapper and exported CM6 primitives preserve raw Markdown, accept consumer extensions, and passed the repository's OFM round-trip spike; Doug KX-specific block detection, completion, validation and controls remain local extensions.
+
 **What is genuinely new in v4.1:**
 
 - **A unified completion layer (§6)** that folds today's ad-hoc `[[`/`#` autocomplete into one provider interface, shared by inline triggers, the slash menu, and the agent console — and *promotes the existing behaviours to spec* instead of leaving them as implicit code.

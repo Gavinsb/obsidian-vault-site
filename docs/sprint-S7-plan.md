@@ -1,6 +1,6 @@
 # Sprint S7 Implementation Plan — Unified WYSIWYG Editor + Agent Block Console
 
-**Status:** planned — **no implementation authorised until Gav says `start build`**
+**Status:** build authorised 2026-09-24 — Wave 0 complete; Wave 1 shared logic in progress
 **Sprint:** S7
 **Opened:** 2026-09-22 (collection) · **Unified plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`
@@ -252,4 +252,7 @@ The waves are not separate releases. S7 is incomplete until Wave 8 passes.
 - **2026-09-24 — Q1–Q9 resolved** by Gav.
 - **2026-09-24 — Initial phased plan authored.**
 - **2026-09-24 — Plan consolidated at Gav's request.** Former MVP and Phase 2 scopes merged into one 13-item, nine-wave S7 release; completion, validator, drag/drop, Properties, embeds/preview and vault-wide ID index are all in-sprint. Two-column drag zones and live Mermaid rendering remain explicitly excluded.
-- **Awaiting `start build`.**
+- **2026-09-24 — Build authorised.** Gav said `start build`; Wave 0 / S7-1 foundation spike started.
+- **2026-09-24 — S7-1 verdict: VALIDATED — adopt and extend `@atomic-editor/editor` v0.6.2.** Evidence: MIT licence; upstream HEAD `b6ed65f` (2026-07-11); React 18/19 + CM6 peer model; typecheck/build and 75/75 upstream tests passed; a dedicated happy-dom OFM test mounted frontmatter, wikilinks/embeds, callouts, agent blocks and fenced impostors, then applied an isolated edit with byte-identical surrounding content; consumer `extensions` accepted a custom StateField. Equal Vite library builds measured direct CM6+Markdown at 563,233 B raw / 172,837 B gzip versus Atomic + CSS at 733,987 B raw / 218,987 B gzip (+46,150 B gzip). The package tarball is 101,292 B compressed / 402,598 B unpacked. `npm audit` findings were confined to upstream dev/test tooling (`vitest`, `postcss`, `nanoid`); runtime dependencies are peers owned by this app. Recommendation: use Atomic's React wrapper and exported primitives, pin the package and CM6 peers, and layer Doug KX parsing/validation/completions as consumer extensions. The throwaway spike remains under ignored `.tmp/openclaw-spikes/` and will not ship.
+- **2026-09-24 — Wave 1 started:** S7-2 block detector and S7-4 status/ID/validator shared contracts.
+- **2026-09-24 — Wave 1 complete.** S7-2 `block-detect.ts` (Lezer/GFM tree, fence-aware, agent spans from `parseAgentBlocks`, flat ranges + nesting) with 10 tests. S7-4 `agent-status.ts` (seven statuses, locked `TRANSITIONS` incl. `halted→new|HRR|cancelled`, `canTransition→{ok,reason}`, tolerant header parse, edit-scoped canonical writer, `ID_RE`/`generateId`, legacy map) and `agent-validation.ts` (R1–R15 with ranges, safe fixes, edit-scoped blocking) with 7 + 18 tests. S7-4 also lands the session-gated vault-wide `GET /api/agent/ids` (`agent-ids.ts`, cached on the index signature; note IDs plus sweep-log `(ID: …)` references; IDs only, no agent content) with 3 integration tests. The rate-limited subagent's output was repaired by hand: a `??`/`||` syntax error, an R8 `.ok` call site, a union-type typecheck error, the R13 nested-quote regex, the transition-table/exports contract, and a missing `.js` import extension. Gates: lint clean; Vitest **152/152 across 22 files**; production build passed; QA 27/27.
