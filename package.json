@@ -16,7 +16,7 @@
     "lint": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@atomic-editor/editor": "0.6.2",
+    "@atomic-editor/editor": "file:./vendor/atomic-editor",
     "@codemirror/autocomplete": "6.20.0",
     "@codemirror/commands": "6.10.0",
     "@codemirror/lang-markdown": "6.5.0",

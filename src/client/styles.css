@@ -197,7 +197,31 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 
 /* ---------- Doc view ---------- */
 .doc-view { max-width: 1100px; margin: 0 auto; }
-.doc-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+/* S8-5 — the toolbar is the single sticky control row: Back/title on the
+   left, mode toggle + Save/Cancel + ⋯ on the right. */
+.doc-toolbar {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  flex-wrap: wrap; position: sticky; top: 0; z-index: 30;
+  background: var(--bg); padding: 10px 0; margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.toolbar-title { color: var(--text-dim); font-size: 13px; font-weight: 600; max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolbar-rating { display: flex; align-items: center; gap: 8px; }
+.fav-btn { padding: 5px 8px; }
+/* S8-7 — overflow menu (option A): agent-block toggle (admins) + Delete. */
+.doc-menu-wrap { position: relative; }
+.doc-menu-btn { min-width: 32px; font-size: 15px; line-height: 1; padding: 5px 8px; }
+.doc-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 190px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 12px 30px rgba(0,0,0,.35); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.doc-menu button {
+  border: 0; background: none; text-align: left; width: 100%;
+  border-radius: var(--radius-sm); padding: 7px 10px; font: inherit;
+}
+.doc-menu button:hover { background: var(--bg-alt); }
+.doc-menu button.danger { color: var(--err); }
 .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .doc-toolbar button, .editor-bar button { border: 1px solid var(--border); background: var(--bg-card); color: var(--text); border-radius: var(--radius-sm); padding: 5px 10px; cursor: pointer; }
 .doc-toolbar button.danger { color: var(--err); border-color: var(--err); }
@@ -214,7 +238,6 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .conflict-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(224,166,58,0.18); border: 1px solid var(--warn); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 10px; }
 
 .doc-body { display: flex; gap: 16px; }
-.doc-body.split .doc-main { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .doc-main { flex: 1; min-width: 0; }
 .doc-context { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
 .context-block { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
@@ -262,7 +285,16 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 }
 .edit-help-example code { background: none; border: 0; padding: 0; white-space: pre; }
 
-.editor-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.editor-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.saved-hint.advisory { color: var(--warn); }
+.saved-hint.warn { color: var(--warn); }
+.saved-hint.blocked { color: var(--err); }
+.doc-toolbar button.primary.override { background: var(--warn); border-color: var(--warn); color: #241a05; }
+.raw-editor { padding: 0; overflow: hidden; }
+.raw-editor .cm-editor { height: 100%; }
+.doc-properties-collapse { background: var(--prop-bg); border: 1px solid var(--prop-border); border-radius: var(--radius); padding: 8px 12px; margin: 0 0 10px; }
+.doc-properties-collapse summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 13px; }
+.doc-properties-collapse .properties-editor { background: none; border: 0; padding: 0; margin: 8px 0 0; }
 .saved-hint { color: var(--text-dim); font-size: 13px; }
 .editor-pane {
   width: 100%; min-height: 60vh; height: 70vh;
@@ -552,6 +584,20 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .article-meta { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; }
 .article-meta summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 13px; }
 
+/* ---------- S8-2 raw source editor ---------- */
+.raw-editor { display: flex; }
+.raw-editor .cm-editor { flex: 1; min-width: 0; }
+.raw-editor .cm-scroller { font-family: var(--font-mono); font-size: 13px; }
+
+/* ---------- S8-17 table controls (patched editor table widget) ---------- */
+.cm-atomic-table-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.cm-atomic-table-tool {
+  border: 1px solid var(--border); background: var(--btn-bg); color: var(--text);
+  border-radius: var(--radius-sm); padding: 3px 8px; font-size: 12px; cursor: pointer;
+}
+.cm-atomic-table-tool:hover:not(:disabled) { border-color: var(--accent); }
+.cm-atomic-table-tool:disabled { opacity: 0.5; cursor: default; }
+
 /* ---------- Skeleton loader ---------- */
 .skeleton { background: linear-gradient(90deg, var(--bg-alt) 25%, var(--bg-card) 50%, var(--bg-alt) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: var(--radius-sm); }
 .skeleton-line { height: 14px; margin: 8px 0; }
@@ -591,9 +637,8 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
   .app-content { padding: 14px; }
   .doc-body { flex-direction: column; }
   .doc-context { width: 100%; }
-  .doc-body.split .doc-main { grid-template-columns: 1fr; }
   .doc-toolbar { flex-direction: column; align-items: stretch; }
-  .toolbar-left, .toolbar-right { justify-content: space-between; }
+  .toolbar-left, .toolbar-right { justify-content: flex-start; }
   .graph-svg { height: 460px; }
   .word-cloud { height: 380px; }
   .header-search input { width: 130px; max-width: 38vw; }

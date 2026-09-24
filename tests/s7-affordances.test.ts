@@ -128,6 +128,7 @@ describe("S7-10 slash menu scaffolds", () => {
     expect([...categories].sort()).toEqual([...SCAFFOLD_CATEGORIES].sort());
     expect(SCAFFOLD_CATEGORIES).toEqual([
       "CommonMark",
+      "Table",
       "Callout",
       "Embed",
       "Properties",

@@ -192,6 +192,7 @@ export type TurnIntoId =
   | "quote"
   | "callout"
   | "code"
+  | "table"
   | "agent"
   | "agent-review";
 
@@ -213,6 +214,7 @@ export const TURN_INTO_OPTIONS: readonly TurnIntoOption[] = Object.freeze([
   { id: "quote", label: "Quote" },
   { id: "callout", label: "Callout" },
   { id: "code", label: "Code block" },
+  { id: "table", label: "Table" },
   { id: "agent", label: "Agent instruction" },
   { id: "agent-review", label: "Agent review" },
 ]);
@@ -293,6 +295,30 @@ function agentHeaderText(type: TurnIntoId, ctx: ScaffoldContext): string {
     : formatAgentHeader("agent-review", { id });
 }
 
+/** True when the lines look like a GFM table (leading pipe + a delimiter row). */
+function isTableBlock(lines: readonly string[]): boolean {
+  if (!/^\s*\|/.test(lines[0] ?? "")) return false;
+  return lines.some((line) => /^\s*\|?[\s:|-]*-{2,}[\s:|-]*\|?\s*$/.test(line));
+}
+
+/** Split one table row into trimmed cells (outer pipes dropped). */
+function splitTableCells(line: string): string[] {
+  let s = line.trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((cell) => cell.trim());
+}
+
+/** The starter table a non-table block turns into (S8-16). */
+function starterTable(lines: readonly string[], ending: string, trailing: boolean): string {
+  const head = stripBlockMarker(lines[0] ?? "").trim() || "Column 1";
+  const out = [`| ${head} |  |`, "| --- | --- |"];
+  for (const line of lines.slice(1)) out.push(`| ${stripBlockMarker(line).trim()} |  |`);
+  if (lines.length <= 1) out.push("|  |  |");
+  const joined = out.join(ending);
+  return trailing ? joined + ending : joined;
+}
+
 /**
  * Convert a block's raw text to `target`.
  *
@@ -301,7 +327,10 @@ function agentHeaderText(type: TurnIntoId, ctx: ScaffoldContext): string {
  * - the leading marker of the first line is replaced with the target's;
  * - quote/callout/agent targets re-prefix every line of the block;
  * - leaving a quote/callout strips the quote markers from every line;
- * - `code` wraps the block and drops the first-line marker only.
+ * - `code` wraps the block and drops the first-line marker only;
+ * - `table` builds a starter GFM table from a non-table block; a table block
+ *   converted to any other target first flattens to plain lines (cells joined
+ *   with ` · `, delimiter row dropped) and then applies that target.
  */
 export function turnIntoBlockText(
   text: string,
@@ -316,6 +345,21 @@ export function turnIntoBlockText(
   };
 
   const wasQuoted = /^[ \t]*>/.test(lines[0]);
+
+  // S8-16 — a table block converted to anything else flattens to plain lines
+  // first, then runs the normal target logic on the result.
+  if (target !== "table" && isTableBlock(lines)) {
+    const body = lines
+      .filter((line) => !/^\s*\|?[\s:|-]*-{2,}[\s:|-]*\|?\s*$/.test(line))
+      .map((line) => splitTableCells(line).filter((cell) => cell.length).join(" · "));
+    if (body.length === 0) return text;
+    return turnIntoBlockText(rebuild(body), target, ctx);
+  }
+
+  if (target === "table") {
+    if (isTableBlock(lines)) return text;
+    return starterTable(lines, ending, trailing);
+  }
 
   if (target === "code") {
     const body = lines.map((line, index) => (index === 0 ? stripBlockMarker(line) : line));

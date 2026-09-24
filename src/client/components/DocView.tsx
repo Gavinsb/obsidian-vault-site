@@ -7,6 +7,7 @@ import { stripFrontmatter, splitTitle } from "./Markdown";
 import { MarkdownWithEmbeds } from "./Embeds";
 import { PropertiesEditor } from "./PropertiesEditor";
 import { parseProperties } from "../../shared/properties";
+import { changedRanges, spanIntersectsAny } from "../../shared/changed-ranges";
 import { RatingStars } from "./RatingStars";
 import { Breadcrumbs } from "./Breadcrumbs";
 import {
@@ -17,14 +18,22 @@ import {
 import {
   AgentConsolePanel,
   AgentInlineCard,
-  isSaveBlocked,
   useAgentConsole,
 } from "./AgentConsole";
 import { Editor } from "./Editor";
+import { RawEditor } from "./RawEditor";
 import type { AtomicCodeMirrorEditorHandle } from "@atomic-editor/editor";
 import { EditingHelp } from "./EditingHelp";
 import { AgentBlocksView } from "./AgentBlocksView";
-type Mode = "read" | "edit" | "split";
+
+/**
+ * S8-1/S8-2 — Read · Edit · Raw.
+ *
+ * The old two-pane view is gone: the properties block and the editor shared the
+ * grid row and pushed the preview below it. Raw covers the "just show me the
+ * source" case without a second live pane.
+ */
+type Mode = "read" | "edit" | "raw";
 
 export function DocView() {
   const { path: pathParam } = useParams();
@@ -32,6 +41,8 @@ export function DocView() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const canEdit = !!user;
+  const isAdmin = user?.role === "admin";
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +60,7 @@ export function DocView() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmExternal, setConfirmExternal] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
-  // S7-12 (carried forward from Wave 6): the slash menu's agent scaffolds must
-  // avoid the vault's reserved IDs. `?path=` excludes this note's own IDs from
-  // the endpoint response; they are re-added from the live draft below so a
-  // generated ID cannot duplicate a block in this note either.
+  const [menuOpen, setMenuOpen] = useState(false);
   const [reservedIds, setReservedIds] = useState<string[]>([]);
   const [agentsOn, setAgentsOn] = useState<boolean>(() => {
     try {
@@ -61,24 +69,18 @@ export function DocView() {
       return false;
     }
   });
-  // Imperative CM6 handle — used by "Go to source" to select a block range.
   const editorHandle = useRef<AtomicCodeMirrorEditorHandle | null>(null);
-  // Monotonic sequence for the read-path loads below.
   const seq = useRef(0);
-  // Exactly-one-save guard: a batched double activation (fast double-click,
-  // keyboard + click in one tick) must never issue a second If-Match write.
+  // S8-4 — entering an editing mode invalidates any in-flight read poll.
+  const pollGuard = useRef(0);
   const savingRef = useRef(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const canonicalPath = doc?.meta.relPath ?? lookup;
   const dirty = draft !== baseline;
-  const canEdit = !!user;
-  // A note with no frontmatter keys shows no Properties surface (article or rail).
   const hasProperties = useMemo(
     () => parseProperties(doc?.content ?? "").rows.length > 0,
     [doc?.content],
   );
-  // S7-6/S7-7 — one console store per document. The side panel and the inline
-  // cards read this same parsed state, so they cannot disagree (LOCKED Q9).
-  // Accept/Reject stay draft-only: they never touch the network.
   const agentConsole = useAgentConsole({
     source: draft,
     baseline,
@@ -87,8 +89,23 @@ export function DocView() {
     onAccept: (id) => setDraft(acceptAgentReview(draft, id)),
     onReject: (id) => setDraft(rejectAgentReview(draft, id)),
   });
-  const saveBlocked = isSaveBlocked(agentConsole.findings);
-  // Reserved IDs threaded into the editor's slash menu (S7-12).
+  // S8-11 — a blocking finding only blocks Save when it sits inside what this
+  // draft actually changed. Findings elsewhere are advisory.
+  const changed = useMemo(
+    () => changedRanges(baseline, draft),
+    [baseline, draft],
+  );
+  const blockingFindings = useMemo(
+    () => agentConsole.findings.filter((finding) => finding.blocking),
+    [agentConsole.findings],
+  );
+  const enforcedFindings = useMemo(
+    () => blockingFindings.filter((f) => spanIntersectsAny(f.range, changed)),
+    [blockingFindings, changed],
+  );
+  const advisoryBlocking = blockingFindings.length - enforcedFindings.length;
+  const saveBlocked = enforcedFindings.length > 0;
+  const showOverride = !saveBlocked && advisoryBlocking > 0;
   const draftIds = useMemo(
     () =>
       parseAgentBlocks(draft)
@@ -104,26 +121,27 @@ export function DocView() {
     if (spin) setLoading(true);
     setError(null);
     const id = ++seq.current;
+    const guard = pollGuard.current;
     try {
-      const d = wantAgents && user
-        ? await api.getDocAgents(p)
-        : await api.getDoc(p);
-      // A newer load (poll, agent-view toggle, note switch) already won:
-      // applying this response would restore a stale projection/draft.
-      if (id !== seq.current) return;
+      const d =
+        wantAgents && user ? await api.getDocAgents(p) : await api.getDoc(p);
+      if (id !== seq.current || guard !== pollGuard.current) return;
       setDoc(d);
       if (mode === "read") {
         setDraft(d.content);
         setBaseline(d.content);
       }
     } catch (e) {
-      if (id !== seq.current) return;
+      if (id !== seq.current || guard !== pollGuard.current) return;
       setError(String(e));
     } finally {
       if (id === seq.current) setLoading(false);
     }
   };
+  // S8-4 — loading the source also invalidates any in-flight read poll so a
+  // late response can never overwrite the fresh draft with the masked view.
   const loadSource = async () => {
+    pollGuard.current += 1;
     const out = await api.getSource(canonicalPath);
     setDoc(out.data);
     setDraft(out.data.content);
@@ -145,13 +163,9 @@ export function DocView() {
     }, 4000);
     return () => clearInterval(t);
   }, [canonicalPath, mode, agentsOn]);
-  // Reserved IDs (vault + sweep log) power generation and R3; only needed
-  // inside an editing session, and never for anonymous readers.
   useEffect(() => {
     if (canEdit && mode !== "read") void agentConsole.refreshReservedIds();
   }, [canEdit, mode]);
-  // The host's copy of the same reserved set, fed to the editor so the slash
-  // menu can seed ID generation (never a network write of its own).
   useEffect(() => {
     if (!canEdit || mode === "read" || !canonicalPath) return;
     let alive = true;
@@ -167,8 +181,6 @@ export function DocView() {
       alive = false;
     };
   }, [canEdit, mode, canonicalPath]);
-  // S7-9 — resolve a copied block reference: `/note/Note#^block-id` scrolls
-  // to the rendered block anchor once the target note is loaded.
   useEffect(() => {
     if (mode !== "read") return;
     const raw = location.hash.replace(/^#/, "");
@@ -188,6 +200,24 @@ export function DocView() {
     window.addEventListener("beforeunload", fn);
     return () => window.removeEventListener("beforeunload", fn);
   }, [dirty]);
+  // Overflow menu: close on outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target))
+        return;
+      setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
   if (loading && !doc)
     return (
       <div className="view">
@@ -221,6 +251,10 @@ export function DocView() {
       setFlash({ kind: "err", msg: String(e) });
     }
   };
+  const leave = () => {
+    pollGuard.current += 1;
+    setMode("read");
+  };
   const refreshAfter = async () => {
     const out = await api.getSource(canonicalPath);
     setDoc(out.data);
@@ -230,15 +264,13 @@ export function DocView() {
     return out;
   };
   const onSave = async (etag = baseEtag, explicitOverwrite = false) => {
-    // S7-12 exactly-one-save guard: a batched double activation must never
-    // reach the network twice. The S4 duplicate-save contract below is kept
-    // byte-identical and still applies.
     if (savingRef.current) return;
     if (saving || !dirty || (!explicitOverwrite && !!conflict)) return;
-    // S7-7 Save gate: a blocking finding on a session-edited block must be
-    // fixed before the draft can be persisted (no escape hatch).
     if (saveBlocked) {
-      setFlash({ kind: "warn", msg: "Fix the blocking validator findings before saving." });
+      setFlash({
+        kind: "warn",
+        msg: "Fix the blocking validator findings in the blocks you changed before saving.",
+      });
       return;
     }
     savingRef.current = true;
@@ -251,7 +283,12 @@ export function DocView() {
       setSavedAt(new Date());
       setConflict(null);
       setConfirmOverwrite(false);
-      setFlash({ kind: "ok", msg: "Saved" });
+      setFlash({
+        kind: "ok",
+        msg: showOverride
+          ? `Saved. ${advisoryBlocking} blocking finding${advisoryBlocking === 1 ? "" : "s"} outside your changes were ignored.`
+          : "Saved",
+      });
     } catch (e) {
       if (e instanceof ApiError && e.status === 412) {
         setConflict(e.body);
@@ -278,17 +315,14 @@ export function DocView() {
   const mutate = async (kind: "rating" | "favorite", v: any) => {
     try {
       const src = await api.getSource(canonicalPath);
-      const out =
-        kind === "rating"
-          ? await api.rate(canonicalPath, v, src.etag!)
-          : await api.setMeta(canonicalPath, { favorite: v }, src.etag!);
-      void out;
+      if (kind === "rating") await api.rate(canonicalPath, v, src.etag!);
+      else await api.setMeta(canonicalPath, { favorite: v }, src.etag!);
       await loadPublic(canonicalPath, false);
     } catch (e) {
       if (e instanceof ApiError && (e.status === 400 || e.status === 428))
         setFlash({
           kind: "warn",
-          msg: "Could not verify this document's current version. Reload the note and try again — your rating or change is preserved in the editor.",
+          msg: "Could not verify this document's current version. Reload the note and try again.",
         });
       else setFlash({ kind: "err", msg: String(e) });
     }
@@ -298,142 +332,159 @@ export function DocView() {
       setConfirmCancel(true);
       return;
     }
-    setMode("read");
+    leave();
   };
   const discard = () => {
     setDraft(baseline);
-    setMode("read");
     setConfirmCancel(false);
+    leave();
   };
-  // Editor value handler. The parameter stays named `e` to keep the S4
-  // regression contract (`onChange={(e) => onInput(`) satisfied; it carries
-  // the editor's new markdown, not a DOM event.
   const onInput = (e: string) => {
     setDraft(e);
   };
-  const editor = (
-    <Editor
-      value={draft}
-      onChange={(e) => onInput(e)}
-      path={canonicalPath}
-      reservedIds={editorReservedIds}
-      readOnly={mode === "read"}
-      onSave={() => void onSave()}
-      editorHandleRef={editorHandle}
-      className={`editor-pane${mode === "edit" ? " full" : ""}`}
-    />
-  );
   const readBody = stripFrontmatter(doc.content),
     { title, rest } = splitTitle(readBody);
   return (
     <div className="doc-view">
       <div className="doc-toolbar">
         <div className="toolbar-left">
-          <button onClick={() => navigate(-1)}>← Back</button>
+          <button className="back-btn" onClick={() => navigate(-1)}>
+            ← Back
+          </button>
           <Breadcrumbs folder={meta.folder} current={meta.title} />
+          {mode !== "read" && (
+            <span className="toolbar-title" title={meta.title}>
+              {meta.title}
+            </span>
+          )}
         </div>
         <div className="toolbar-right">
-          <div className="mode-toggle">
-            <button
-              className={mode === "read" ? "active" : ""}
-              onClick={() => (mode === "read" ? null : cancel())}
-            >
-              Read
-            </button>
-            {canEdit && (
-              <>
-                <button
-                  className={mode === "split" ? "active" : ""}
-                  onClick={() => void enter("split")}
-                >
-                  Split
-                </button>
-                <button
-                  className={mode === "edit" ? "active" : ""}
-                  onClick={() => void enter("edit")}
-                >
-                  Edit
-                </button>
-              </>
-            )}
-          </div>
           {canEdit && (
+            <div className="mode-toggle" role="group" aria-label="View mode">
+              <button
+                className={mode === "read" ? "active" : ""}
+                onClick={() => (mode === "read" ? null : cancel())}
+              >
+                Read
+              </button>
+              <button
+                className={mode === "edit" ? "active" : ""}
+                onClick={() => void enter("edit")}
+              >
+                Edit
+              </button>
+              <button
+                className={mode === "raw" ? "active" : ""}
+                onClick={() => void enter("raw")}
+              >
+                Raw
+              </button>
+            </div>
+          )}
+          {canEdit && mode === "read" && (
+            <div className="toolbar-rating">
+              <RatingStars
+                value={meta.rating}
+                scale={5}
+                onChange={(v) => void mutate("rating", v)}
+                size={20}
+              />
+              <button
+                className="fav-btn"
+                onClick={() => void mutate("favorite", !meta.favorite)}
+                title={meta.favorite ? "Remove favourite" : "Add favourite"}
+              >
+                {meta.favorite ? "★ Favourite" : "☆ Favourite"}
+              </button>
+            </div>
+          )}
+          {canEdit && mode !== "read" && (
             <>
               <button
-                className={agentsOn ? "active" : ""}
-                onClick={() => {
-                  const next = !agentsOn;
-                  setAgentsOn(next);
-                  try {
-                    localStorage.setItem(
-                      "kv.agentBlocksView",
-                      next ? "1" : "0",
-                    );
-                  } catch {}
-                  if (mode === "read") void loadPublic(canonicalPath, false, next);
-                }}
-                title="Toggle agent instruction blocks in the read view"
+                className={`primary${showOverride && isAdmin ? " override" : ""}`}
+                onClick={() => void onSave()}
+                disabled={
+                  saving || !dirty || !baseEtag || !!conflict || saveBlocked
+                }
+                title={
+                  showOverride && isAdmin
+                    ? `${advisoryBlocking} blocking finding(s) sit outside your changes`
+                    : undefined
+                }
               >
-                {agentsOn ? "Hide agent blocks" : "Show agent blocks"}
+                {saving
+                  ? "Saving…"
+                  : showOverride && isAdmin
+                    ? `Save anyway (${advisoryBlocking})`
+                    : "Save"}
               </button>
-              <button onClick={() => void mutate("favorite", !meta.favorite)}>
-                {meta.favorite ? "★ Favorited" : "☆ Favorite"}
+              <button onClick={cancel} disabled={saving}>
+                Cancel
               </button>
-              {confirmDelete ? (
-                <>
+            </>
+          )}
+          {canEdit && (
+            <div className="doc-menu-wrap" ref={menuRef}>
+              <button
+                className="doc-menu-btn"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label="More actions"
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                ⋯
+              </button>
+              {menuOpen && (
+                <div className="doc-menu" role="menu">
+                  {isAdmin && mode === "read" && (
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        const next = !agentsOn;
+                        setAgentsOn(next);
+                        try {
+                          localStorage.setItem(
+                            "kv.agentBlocksView",
+                            next ? "1" : "0",
+                          );
+                        } catch {}
+                        setMenuOpen(false);
+                        void loadPublic(canonicalPath, false, next);
+                      }}
+                    >
+                      {agentsOn ? "Hide agent blocks" : "Show agent blocks"}
+                    </button>
+                  )}
                   <button
+                    role="menuitem"
                     className="danger"
-                    onClick={async () => {
-                      const src = await api.getSource(canonicalPath);
-                      await api.deleteDoc(canonicalPath, src.etag!);
-                      navigate("/");
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmDelete(true);
                     }}
                   >
-                    Confirm delete
+                    Delete note
                   </button>
-                  <button onClick={() => setConfirmDelete(false)}>
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="danger"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Delete
-                </button>
+                </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
-      {canEdit && (
-        <div className="doc-rating-bar">
-          <span className="rating-label">Rate this page</span>
-          <RatingStars
-            value={meta.rating}
-            scale={5}
-            onChange={(v) => void mutate("rating", v)}
-            size={22}
-          />
-        </div>
-      )}
       {mode !== "read" && (
         <div className="editor-bar">
-          <button
-            className="primary"
-            onClick={() => void onSave()}
-            disabled={saving || !dirty || !baseEtag || !!conflict || saveBlocked}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button onClick={cancel} disabled={saving}>
-            Cancel
-          </button>
           {dirty && <span className="saved-hint">Unsaved changes</span>}
           {saveBlocked && (
             <span className="saved-hint blocked">
-              Save is disabled: blocking validator findings on edited blocks.
+              Save is disabled: blocking validator findings in the blocks you
+              changed.
+            </span>
+          )}
+          {showOverride && (
+            <span className="saved-hint advisory">
+              {advisoryBlocking} blocking finding
+              {advisoryBlocking === 1 ? "" : "s"} outside your changes
+              {isAdmin ? " — “Save anyway” will ignore them." : "."}
             </span>
           )}
           {savedAt && (
@@ -450,6 +501,33 @@ export function DocView() {
             Discard
           </button>
           <button onClick={() => setConfirmCancel(false)}>Keep editing</button>
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="confirm-panel">
+          Delete this note permanently?
+          {dirty && (
+            <span className="saved-hint warn">
+              Your unsaved changes will be discarded.
+            </span>
+          )}
+          <button
+            className="danger"
+            onClick={async () => {
+              try {
+                const src = await api.getSource(canonicalPath);
+                await api.deleteDoc(canonicalPath, src.etag!);
+                setConfirmDelete(false);
+                navigate("/");
+              } catch (e) {
+                setConfirmDelete(false);
+                setFlash({ kind: "err", msg: String(e) });
+              }
+            }}
+          >
+            Confirm delete
+          </button>
+          <button onClick={() => setConfirmDelete(false)}>Cancel</button>
         </div>
       )}
       {flash && <div className={`flash flash-${flash.kind}`}>{flash.msg}</div>}
@@ -508,24 +586,16 @@ export function DocView() {
           </button>
         </div>
       )}
-      {canEdit && mode !== "read" && (agentConsole.blocks.length > 0 || agentConsole.findings.length > 0) && (
-        <AgentConsolePanel state={agentConsole} editorHandleRef={editorHandle} />
-      )}
-      <div className={`doc-body${mode === "split" ? " split" : ""}`}>
+      {canEdit &&
+        mode === "edit" &&
+        (agentConsole.blocks.length > 0 || agentConsole.findings.length > 0) && (
+          <AgentConsolePanel state={agentConsole} editorHandleRef={editorHandle} />
+        )}
+      <div className="doc-body">
         <div className="doc-main">
           {mode === "read" && (
             <article className="article">
               <h1 className="article-title">{title || meta.title}</h1>
-              <details className="collapsible article-meta">
-                <summary>File info</summary>
-                <Meta meta={meta} />
-              </details>
-              {hasProperties && (
-                <details className="collapsible article-properties">
-                  <summary>Properties</summary>
-                  <PropertiesEditor source={doc.content} readOnly hideHead />
-                </details>
-              )}
               {canEdit && agentsOn ? (
                 <AgentBlocksView content={rest} baseFolder={meta.folder} />
               ) : (
@@ -537,35 +607,45 @@ export function DocView() {
               )}
             </article>
           )}
-          {mode === "split" && (
-            <>
-              <PropertiesEditor
-                source={draft}
-                onChange={setDraft}
-                className="doc-properties"
-              />
-              {editor}
-              <div className="preview-pane">
-                <MarkdownWithEmbeds
-                  content={draft}
-                  baseFolder={meta.folder}
-                  refTarget={meta.baseName}
-                />
-              </div>
-            </>
-          )}
           {mode === "edit" && (
             <>
-              <PropertiesEditor
-                source={draft}
-                onChange={setDraft}
-                className="doc-properties"
+              {hasProperties && (
+                <details className="collapsible doc-properties-collapse">
+                  <summary>Properties</summary>
+                  <PropertiesEditor
+                    source={draft}
+                    onChange={setDraft}
+                    hideHead
+                    className="doc-properties"
+                  />
+                </details>
+              )}
+              <Editor
+                value={draft}
+                onChange={(e) => onInput(e)}
+                path={canonicalPath}
+                reservedIds={editorReservedIds}
+                readOnly={false}
+                onSave={() => void onSave()}
+                editorHandleRef={editorHandle}
+                className="editor-pane full"
               />
-              {editor}
             </>
           )}
-          {canEdit && mode !== "read" && agentConsole.blocks.length > 0 && (
-            <div className="agent-inline-list" aria-label="Inline agent block controls">
+          {mode === "raw" && (
+            <RawEditor
+              value={draft}
+              onChange={setDraft}
+              path={canonicalPath}
+              onSave={() => void onSave()}
+              className="editor-pane full"
+            />
+          )}
+          {canEdit && mode === "edit" && agentConsole.blocks.length > 0 && (
+            <div
+              className="agent-inline-list"
+              aria-label="Inline agent block controls"
+            >
               {agentConsole.blocks.map((block, i) => (
                 <AgentInlineCard
                   key={`${block.start}-${i}`}
@@ -587,7 +667,9 @@ export function DocView() {
               <PropertiesEditor source={doc.content} readOnly />
             </section>
           )}
-          {canEdit && <EditingHelp />}
+          {canEdit && mode !== "read" && (
+            <EditingHelp mode={mode} />
+          )}
           <section className="context-block">
             <h4>Backlinks ({doc.backlinks.length})</h4>
             <ul className="link-list">
@@ -605,6 +687,7 @@ export function DocView() {
     </div>
   );
 }
+
 function Meta({ meta }: { meta: Document["meta"] }) {
   return (
     <>

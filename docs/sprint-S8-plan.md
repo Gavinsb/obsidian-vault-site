@@ -1,6 +1,6 @@
 # Sprint S8 Implementation Plan — Editor Modes, Header Layout & Tables
 
-**Status:** PLANNED 2026-09-24 — all questions (Q1–Q7) answered; awaiting "start build".
+**Status:** RELEASED 2026-09-24 — all seven waves (W0–W6) implemented, verified and deployed; released on `master`.
 **Sprint:** S8 (20 items, `S8-1` … `S8-20`)
 **Opened:** 2026-09-24 (collection) · **Plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`

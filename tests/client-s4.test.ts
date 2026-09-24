@@ -20,7 +20,7 @@ describe("S4 editor integration", () => {
     );
     // S7-7 adds the edit-scoped validator gate to the same control.
     expect(source).toMatch(
-      /disabled=\{saving \|\| !dirty \|\| !baseEtag \|\| !!conflict \|\| saveBlocked\}/,
+      /disabled=\{\s*saving \|\| !dirty \|\| !baseEtag \|\| !!conflict \|\| saveBlocked\s*\}/,
     );
   });
   it("requires confirmation before replacing a draft with the external version", () => {

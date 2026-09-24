@@ -25,6 +25,7 @@ export const SLASH_CARET = "\u0000";
 /** Categories the spec requires the menu to cover (§4.2, §8). */
 export type ScaffoldCategory =
   | "CommonMark"
+  | "Table"
   | "Callout"
   | "Embed"
   | "Properties"
@@ -71,6 +72,8 @@ export const SCAFFOLDS: readonly Scaffold[] = Object.freeze([
   { id: "quote", label: "Quote", category: "CommonMark", hint: ">", keywords: ["blockquote"], text: "> " },
   { id: "code", label: "Code block", category: "CommonMark", hint: "```", keywords: ["fence", "pre"], text: `\`\`\`\n${SLASH_CARET}\n\`\`\`` },
   { id: "divider", label: "Divider", category: "CommonMark", hint: "---", keywords: ["hr", "rule", "separator"], text: "---\n" },
+  // S8-15 — starter GFM table; the caret lands in the first header cell.
+  { id: "table", label: "Table", category: "Table", hint: "| a | b |", keywords: ["grid", "rows", "columns", "cells"], text: `| ${SLASH_CARET} |  |\n| --- | --- |\n|  |  |` },
   { id: "callout", label: "Callout", category: "Callout", hint: "> [!type]", keywords: ["admonition", "note", "warning"], text: `> [!note] ${SLASH_CARET}` },
   { id: "embed-note", label: "Embed note", category: "Embed", hint: "![[Note]]", keywords: ["transclusion", "include"], text: `![[${SLASH_CARET}]]` },
   { id: "embed-block", label: "Embed block", category: "Embed", hint: "![[#^id]]", keywords: ["transclusion", "block ref"], text: `![[#^${SLASH_CARET}]]` },
@@ -99,6 +102,7 @@ function agentHeader(type: AgentHeaderType, ctx: ScaffoldContext): string {
 /** Categories in the order the menu groups them (spec §4.2 / §8). */
 export const SCAFFOLD_CATEGORIES: readonly ScaffoldCategory[] = Object.freeze([
   "CommonMark",
+  "Table",
   "Callout",
   "Embed",
   "Properties",

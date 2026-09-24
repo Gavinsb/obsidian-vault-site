@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+export type EditingHelpMode = "edit" | "raw";
+
 function Example({ code }: { code: string }) {
   return (
     <pre className="edit-help-example">
@@ -24,13 +26,15 @@ function Section({
 }
 
 /**
- * In-product reference for signed-in editors. Summarises the WYSIWYG surface,
- * the block commands, the autocomplete and slash menus, structured content,
- * and how agent blocks work. Collapsed by default and placed between File info
- * and Backlinks.
+ * S8-13 / S8-14 / S8-20 — in-product reference for signed-in editors.
+ *
+ * Rendered only while editing (Edit or Raw), and the guidance is scoped to the
+ * editor actually in use: the live-preview surface in Edit, plain source in
+ * Raw. Tables, block commands and the Save gate are documented for both.
  */
-export function EditingHelp() {
+export function EditingHelp({ mode = "edit" }: { mode?: EditingHelpMode }) {
   const [open, setOpen] = useState(false);
+  const raw = mode === "raw";
   return (
     <section className="context-block edit-help">
       <h4 className="edit-help-heading">
@@ -39,12 +43,113 @@ export function EditingHelp() {
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          Editing help
+          Editing help — {raw ? "Raw source" : "live preview"}
           <span className="edit-help-caret">{open ? "▾" : "▸"}</span>
         </button>
       </h4>
       {open && (
         <div className="edit-help-content">
+          {raw ? (
+            <Section title="Raw source editor">
+              <ul className="edit-help-list">
+                <li>
+                  <strong>Plain Markdown:</strong> this pane is the file exactly
+                  as it is written — no live rendering, no block gutter, no
+                  inline preview. Syntax highlighting and line numbers only.
+                </li>
+                <li>
+                  <strong>Frontmatter:</strong> the YAML block at the very top
+                  is editable here as ordinary text; it is hidden from public
+                  rendering.
+                </li>
+                <li>
+                  <strong>Save:</strong> nothing is written until you click{" "}
+                  <strong>Save</strong> (or <code>Ctrl/Cmd+S</code>). Switch to{" "}
+                  <strong>Edit</strong> for the WYSIWYG surface with the block
+                  tools.
+                </li>
+              </ul>
+            </Section>
+          ) : (
+            <Section title="The editor &amp; block commands">
+              <ul className="edit-help-list">
+                <li>
+                  <strong>Live Markdown:</strong> the editor is a CodeMirror 6
+                  WYSIWYG surface that renders Markdown as you type — headings,
+                  emphasis, lists, quotes, links, tags, highlights and comments.
+                  The raw delimiters reappear when the caret enters them, so you
+                  can always edit the source.
+                </li>
+                <li>
+                  <strong>Markdown is the file:</strong> what you see is the
+                  plain text that gets saved. A note you do not change is
+                  written back byte-for-byte, including syntax the editor does
+                  not render. Mermaid stays fenced source — there is no live
+                  diagram view.
+                </li>
+                <li>
+                  <strong>Slash menu:</strong> type <code>/</code> at the start
+                  of an empty block for a filterable insert menu (
+                  <code>↑</code>/<code>↓</code> to move,{" "}
+                  <code>Enter</code>/<code>Tab</code> to insert,{" "}
+                  <code>Esc</code> to dismiss). It offers CommonMark blocks
+                  (text, headings 1–3, bulleted/numbered list, quote, code
+                  block, divider, table), Callout, Embed note, Embed block,
+                  Properties, Tag, Task, Mermaid, and Agent
+                  instruction/review.
+                </li>
+                <li>
+                  <strong>Selection toolbar:</strong> select text for a floating
+                  toolbar with bold, italic, strikethrough, inline code, link,
+                  wikilink, highlight and comment. <code>Esc</code> or a click
+                  elsewhere dismisses it.
+                </li>
+                <li>
+                  <strong>Block gutter:</strong> every block shows a{" "}
+                  <code>+</code> (insert below) and a drag handle in the
+                  reserved left margin — the gutter never shifts your text. Drag
+                  to reorder; drop <em>before</em>, <em>after</em> or{" "}
+                  <em>nest</em> (there are no side-by-side drop zones).
+                </li>
+                <li>
+                  <strong>Multiple blocks:</strong> block operations act on
+                  whole blocks — a contiguous selection snaps to block
+                  boundaries, so an action never splits a block in half. Every
+                  block change is a single step, so <code>Ctrl/Cmd+Z</code>{" "}
+                  restores the exact previous source.
+                </li>
+              </ul>
+            </Section>
+          )}
+
+          <Section title="Tables">
+            <ul className="edit-help-list">
+              <li>
+                <strong>Create:</strong> type <code>/table</code> at the start
+                of an empty block for a starter table, or write pipes by hand
+                with a header separator row. “Turn into → Table” converts the
+                block you are on.
+              </li>
+              <li>
+                <strong>Edit cells:</strong> click a cell and type.{" "}
+                <code>Tab</code> and <code>Enter</code> move to the next cell;{" "}
+                <code>Shift+Tab</code> goes back; tabbing past the last cell
+                appends a row.
+              </li>
+              <li>
+                <strong>Rows &amp; columns:</strong> use the controls on the
+                row and column edges of the table to insert or delete. The
+                last column cannot be deleted; removing the last body row
+                converts the table back to a paragraph.
+              </li>
+              <li>
+                <strong>Markdown:</strong> a table is plain GFM —{" "}
+                <code>| a | b |</code> plus <code>| --- | --- |</code>. Editing
+                a cell rewrites only that table's source lines.
+              </li>
+            </ul>
+          </Section>
+
           <Section title="Formatting">
             <ul className="edit-help-list">
               <li>
@@ -79,9 +184,6 @@ export function EditingHelp() {
                 <code>```ts</code> … <code>```</code>.
               </li>
               <li>
-                <strong>Tables:</strong> pipes and a header separator row.
-              </li>
-              <li>
                 <strong>Frontmatter:</strong> the YAML block at the very top is
                 editable and controls metadata; it is hidden from public
                 rendering.
@@ -105,53 +207,6 @@ export function EditingHelp() {
                 <strong>Tags:</strong> <code>#tag</code> anywhere and nested{" "}
                 <code>#parent/child</code>. Quoted text in fenced code is not a
                 tag.
-              </li>
-            </ul>
-          </Section>
-
-          <Section title="The editor &amp; block commands">
-            <ul className="edit-help-list">
-              <li>
-                <strong>Live Markdown:</strong> the editor is a CodeMirror 6
-                WYSIWYG surface that renders Markdown as you type — headings,
-                emphasis, lists, quotes, links, tags, highlights and comments.
-                The raw delimiters reappear when the caret enters them, so you
-                can always edit the source.
-              </li>
-              <li>
-                <strong>Markdown is the file:</strong> what you see is the
-                plain text that gets saved. A note you do not change is written
-                back byte-for-byte, including syntax the editor does not render.
-                Mermaid stays fenced source — there is no live diagram view.
-              </li>
-              <li>
-                <strong>Slash menu:</strong> type <code>/</code> at the start of
-                an empty block for a filterable insert menu (<code>↑</code>/
-                <code>↓</code> to move, <code>Enter</code>/<code>Tab</code> to
-                insert, <code>Esc</code> to dismiss). It offers CommonMark
-                blocks (text, headings 1–3, bulleted/numbered list, quote, code
-                block, divider), Callout, Embed note, Embed block, Properties,
-                Tag, Task, Mermaid, and Agent instruction/review.
-              </li>
-              <li>
-                <strong>Selection toolbar:</strong> select text for a floating
-                toolbar with bold, italic, strikethrough, inline code, link,
-                wikilink, highlight and comment. <code>Esc</code> or a click
-                elsewhere dismisses it.
-              </li>
-              <li>
-                <strong>Block gutter:</strong> every block shows a{" "}
-                <code>+</code> (insert below) and a drag handle in the reserved
-                left margin — the gutter never shifts your text. Drag to
-                reorder; drop <em>before</em>, <em>after</em> or <em>nest</em>{" "}
-                (there are no side-by-side drop zones).
-              </li>
-              <li>
-                <strong>Multiple blocks:</strong> block operations act on whole
-                blocks — a contiguous selection snaps to block boundaries, so an
-                action never splits a block in half. Every block change is a
-                single step, so <code>Ctrl/Cmd+Z</code> restores the exact
-                previous source.
               </li>
             </ul>
           </Section>
@@ -193,7 +248,8 @@ export function EditingHelp() {
               <li>
                 The Properties panel edits the YAML frontmatter as key/value
                 rows. Key order, quoting style, comments and every untouched
-                byte are preserved; an edit rewrites only that one value.
+                byte are preserved; an edit rewrites only that one value. In Edit
+                it sits collapsed above the editor.
               </li>
               <li>
                 <strong>Server-owned <code>updated</code>:</strong> the{" "}
@@ -255,10 +311,10 @@ export function EditingHelp() {
                 <code>&gt; [!agent-review] ID: … STATUS: ready</code>.
               </li>
               <li>
-                <strong>Agent Block Console:</strong> in Edit/Split mode an
-                Agent Tasks side panel lists every block, and each block also
-                gets an inline card — both drive one shared state. It shows the
-                status dropdown, ID, TARGET, pairing, and the instruction/review
+                <strong>Agent Block Console:</strong> in Edit mode an Agent
+                Tasks side panel lists every block, and each block also gets an
+                inline card — both drive one shared state. It shows the status
+                dropdown, ID, TARGET, pairing, and the instruction/review
                 bodies.
               </li>
               <li>
@@ -279,9 +335,11 @@ export function EditingHelp() {
                 the staged review in your draft only.
               </li>
               <li>
-                <strong>Save gate:</strong> Save is blocked only by errors on
-                blocks you edited in this session. Pre-existing legacy findings
-                are advisory and never block Save.
+                <strong>Save gate:</strong> Save is blocked only by a blocking
+                finding that sits <em>inside the blocks you changed</em>.
+                Findings elsewhere in the note — including pre-existing legacy
+                errors — are advisory and never block; an admin sees “Save
+                anyway” when only advisory findings remain.
               </li>
               <li>
                 <strong>Save to persist:</strong> nothing is written to the
@@ -289,7 +347,8 @@ export function EditingHelp() {
               </li>
               <li>
                 <strong>Safety:</strong> the app treats block text as data only;
-                it never executes instructions or deletes content automatically.
+                it never executes instructions or deletes content
+                automatically.
               </li>
             </ul>
           </Section>
@@ -297,12 +356,12 @@ export function EditingHelp() {
           <Section title="Saving &amp; conflicts">
             <ul className="edit-help-list">
               <li>
-                Edit mode never auto-saves: click <strong>Save</strong> (or{" "}
+                Editing never auto-saves: click <strong>Save</strong> (or{" "}
                 <code>Ctrl/Cmd+S</code>).
               </li>
               <li>
-                Properties, block moves and console changes are all just draft
-                edits — one Save writes them all in a single request.
+                Properties, table edits, block moves and console changes are all
+                just draft edits — one Save writes them all in a single request.
               </li>
               <li>
                 If the note changed elsewhere while you were editing, save fails

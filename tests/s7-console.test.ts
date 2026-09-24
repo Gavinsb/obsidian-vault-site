@@ -434,13 +434,12 @@ describe("S7-7 Save gate", () => {
     expect(isSaveBlocked(edited)).toBe(true);
   });
 
-  it("uses the same expression in DocView's Save button", () => {
+  it("narrows the Save gate to findings inside the changed blocks (S8-11)", () => {
     const docView = read("src/client/components/DocView.tsx");
-    expect(docView).toContain(
-      "disabled={saving || !dirty || !baseEtag || !!conflict || saveBlocked}",
-    );
-    expect(docView).toContain("const saveBlocked = isSaveBlocked(agentConsole.findings)");
-    expect(docView).not.toContain("save anyway");
+    expect(docView).toContain("const saveBlocked = enforcedFindings.length > 0");
+    expect(docView).toContain("spanIntersectsAny(f.range, changed)");
+    expect(docView).toContain("changedRanges(baseline, draft)");
+    expect(docView).toContain("Save anyway");
   });
 
   it("never enables finished from any editable status", () => {

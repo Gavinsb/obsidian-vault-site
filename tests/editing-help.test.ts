@@ -11,14 +11,16 @@ const editingHelp = fs.readFileSync(
 );
 
 describe("Editing help box (S5-2)", () => {
-  it("sits between File info and Backlinks and only renders for editors", () => {
+  it("renders in the rail for editors, only while editing, between File info and Backlinks", () => {
     const fileInfo = docView.indexOf("File info");
     const backlinks = docView.indexOf("Backlinks");
-    const help = docView.indexOf("{canEdit && <EditingHelp />}");
+    const help = docView.indexOf("<EditingHelp mode={mode} />");
     expect(fileInfo).toBeGreaterThanOrEqual(0);
     expect(backlinks).toBeGreaterThan(fileInfo);
     expect(help).toBeGreaterThan(fileInfo);
     expect(help).toBeLessThan(backlinks);
+    // S8-14 — only while editing (not in the read view).
+    expect(docView).toContain('{canEdit && mode !== "read" && (');
   });
 
   it("documents markdown formatting, obsidian syntax, and autocomplete", () => {
