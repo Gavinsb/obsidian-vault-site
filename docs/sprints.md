@@ -12,7 +12,7 @@ as e.g. `S4-3`.
 
 ## S7 — complete ✅
 
-- **Status:** complete ✅ — all 13 items and nine waves (0–8) implemented and verified; the release gate is closing (docs landed, deploy + release commit still pending)
+- **Status:** released ✅ — all 13 items and nine waves (0–8) implemented, verified and deployed 2026-09-24
 - **Opened:** 2026-09-22 (collection) · **Unified plan:** 2026-09-24
 - **Completed:** 2026-09-24
 - **Planning finalized:** 2026-09-24 — Q1–Q9 locked; the former MVP/Phase 2 scopes merged into one 13-item, nine-wave release; the S7-1 foundation spike validated **adopt + extend `@atomic-editor/editor` v0.6.2** (MIT, OFM byte round-trip, +46 KB gzip over direct CM6).
@@ -34,9 +34,9 @@ as e.g. `S4-3`.
   12. **S7-12 — Save/concurrency/masking/safety integration** (draft-only edits, exactly one If-Match write, `412` conflict, endpoint auth/masking)
   13. **S7-13 — Verification, docs, deployment, commit/push** (this entry; release gate)
 - **Build (nine waves, 0–8):** W0/S7-1 foundation spike (adopt Atomic, off `master`); W1 `28390c5` block detector + status model + validator R1–R15 + reserved-ID index; W2 `0e0a42c` unified server-ranked completions endpoint; W3 `698238e` + `8c7f5f0` CM6 editor core replacing the textarea (plus a regression guard after deduping `@lezer/common`); W4 `28328e2` agent console, splice helpers, findings panel; W5 `99858ef` properties editor, embeds/block refs, masked note preview; W6 `91fbe80` block affordances, slash menu, block manipulation with undo fidelity; W7 `b1517a2` save/concurrency/masking integration and reserved-ID seeding for slash-inserted agent blocks; W8 verification + docs (this entry), then deploy and release commit.
-- **Verification:** `npx tsc --noEmit` clean; Vitest **278/278 across 30 files**; per-wave gates recorded in the plan (lint clean, production build passed, QA 27/27). Wave 8's live acceptance (deploy, tunnel endpoints, light/dark, public masking) and `git diff --check` still run with the release commit.
-- **Deployment:** pending — `kv-microsite.service` restart and local/tunnel acceptance are part of the Wave 8 release gate and have not been run yet.
-- **Commit(s):** `28390c5` (W1) · `0e0a42c` (W2) · `698238e` + `8c7f5f0` (W3) · `28328e2` (W4) · `99858ef` (W5) · `91fbe80` (W6) · `b1517a2` (W7). **Wave 8's release commit is not yet made — pending; record the final S7 commit here once known** (plan commits: `4d57f12` open collection, `82c5f38` unified plan).
+- **Verification:** `npx tsc --noEmit` clean; Vitest **278/278 across 30 files**; per-wave gates recorded in the plan (lint clean, production build passed, QA 27/27). Wave 8's live acceptance passed: `kv-microsite.service` restarted clean, local `127.0.0.1:18790` and the public tunnel both `200`, `/api/completions` and `/api/note-preview` public, `/api/agent/ids` `401` anonymously with no agent data returned, and `git diff --check` clean.
+- **Deployment:** `kv-microsite.service` rebuilt and restarted 2026-09-24 09:30 UTC (active/enabled, clean startup, 63 documents indexed); public origin `https://items-lakes-dream-keyboards.trycloudflare.com` verified locally and externally.
+- **Commit(s):** `28390c5` (W1) · `0e0a42c` (W2) · `698238e` + `8c7f5f0` (W3) · `28328e2` (W4) · `99858ef` (W5) · `91fbe80` (W6) · `b1517a2` (W7) · `bb02b28` (W8 release) (plan commits: `4d57f12` open collection, `82c5f38` unified plan).
 - **Out of scope:** CRDT/multi-user collaboration; inline comments/history; two-column layout; live Mermaid/KaTeX rendering; plugin block API; model execution; auth redesign; multi-vault indexing.
 
 ---
