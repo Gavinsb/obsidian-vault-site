@@ -1,6 +1,6 @@
 # Sprint S8 Implementation Plan — Editor Modes, Header Layout & Tables
 
-**Status:** PLANNED 2026-09-24 — Q1–Q5 and Q7 answered; Q6 pending; awaiting "start build".
+**Status:** PLANNED 2026-09-24 — all questions (Q1–Q7) answered; awaiting "start build".
 **Sprint:** S8 (20 items, `S8-1` … `S8-20`)
 **Opened:** 2026-09-24 (collection) · **Plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`
@@ -34,6 +34,7 @@ Fix the note header layout and the editing experience surfaced by the 2026-09-24
 6. **The read article drops both File info and Properties** — they live in the right rail only; the duplicated collapsible cards are removed from the article. *(Answered 2026-09-24, Q5 = both.)*
 7. **One S8 release** — all waves ship together; no mid-sprint checkpoint after W1. *(Answered 2026-09-24, Q7.)*
 8. **Save gate narrowed to changed blocks with an admin-only override** — a `blocking` finding is enforced only if its block is in the diff between `baseline` and `draft`; findings on untouched blocks stay advisory; Save stays disabled only while an *enforced* finding exists; an admin sees "Save anyway" when only narrowed-to-advisory findings remain; an enforced finding stays hard-blocked with no override. *(Answered 2026-09-24, Q4 = yes to a/b/c as proposed.)*
+9. **Toolbar overflow = option A** — the `⋯` menu holds **Show agent blocks (admins only)** and **Delete**; ☆ Favourite stays inline next to the rating (read mode only); Delete opens the existing confirm panel rather than swapping two buttons in the toolbar. *(Answered 2026-09-24, Q6 = A.)*
 
 Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
@@ -60,7 +61,7 @@ Decisions: **(a)** accept block-level overlap; **(b)** admin-only override vs an
 
 **Q5 — S8-6 scope — ANSWERED 2026-09-24 (both).** Drop **both** File info and Properties collapsibles from the read article; the right rail keeps them.
 
-**Q6 — S8-7 toolbar overflow — detail (decision needed).**
+**Q6 — S8-7 toolbar overflow — ANSWERED 2026-09-24 (option A).** `⋯` = Show agent blocks (admins only) + Delete; Favourite stays inline next to the rating; Delete keeps the confirm-panel behaviour.
 Controls after the other decisions are applied: mode toggle `Read | Edit | Raw` (hidden when signed out); rating bar + ☆ Favourite (read mode only); Save/Cancel in the toolbar (Edit/Raw only).
 
 Proposed placement:
