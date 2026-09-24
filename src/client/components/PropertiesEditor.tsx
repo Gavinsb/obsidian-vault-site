@@ -147,18 +147,20 @@ function PropertyRowView({
       <span className="property-key mono" title={row.key}>
         {row.key}
       </span>
-      {editable ? (
-        <PropertyValueInput row={row} onCommit={onCommit} />
-      ) : (
-        <span
-          className="property-value property-value-static mono"
-          aria-readonly="true"
-          title={row.readOnly ? "Server-owned property" : "Nested/block value"}
-        >
-          {row.raw.slice(row.raw.indexOf(":") + 1).trimStart() || "—"}
-        </span>
-      )}
-      {row.comment && <span className="property-comment muted">{row.comment}</span>}
+      <span className="property-value-cell">
+        {editable ? (
+          <PropertyValueInput row={row} onCommit={onCommit} />
+        ) : (
+          <span
+            className="property-value property-value-static mono"
+            aria-readonly="true"
+            title={row.readOnly ? "Server-owned property" : "Nested/block value"}
+          >
+            {row.raw.slice(row.raw.indexOf(":") + 1).trimStart() || "—"}
+          </span>
+        )}
+        {row.comment && <span className="property-comment muted">{row.comment}</span>}
+      </span>
       {row.readOnly && <span className="property-badge">server-owned</span>}
       {onRemove && (
         <button

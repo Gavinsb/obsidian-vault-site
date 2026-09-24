@@ -732,11 +732,13 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .properties-hint { font-size: 12px; }
 .properties-rows { display: flex; flex-direction: column; gap: 6px; }
 .properties-empty { margin: 0; font-size: 12.5px; }
-.property-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.property-key { color: var(--prop-key); min-width: 120px; font-size: 12.5px; }
+/* Two-column grid: key | value (badge, comment and remove ride in the value cell). */
+.property-row { display: grid; grid-template-columns: minmax(76px, max-content) 1fr; align-items: center; column-gap: 10px; row-gap: 2px; }
+.property-key { color: var(--prop-key); font-size: 12.5px; grid-column: 1; }
+.property-value-cell { grid-column: 2; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .property-value-input {
   flex: 1;
-  min-width: 160px;
+  min-width: 0;
   background: var(--bg-alt);
   color: var(--text);
   border: 1px solid var(--border);
@@ -745,9 +747,12 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
   font: inherit;
 }
 .property-value-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.property-value-static { flex: 1; min-width: 160px; color: var(--text-dim); }
+.property-value-static { flex: 1; min-width: 0; color: var(--text-dim); }
 .property-comment { font-size: 12px; }
 .property-badge {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
   font-size: 11px;
   color: var(--text-dim);
   border: 1px solid var(--border);
@@ -756,6 +761,9 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 }
 .property-readonly .property-value-static { opacity: 0.85; }
 .property-remove {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
   border: 0;
   background: none;
   color: var(--text-dim);
