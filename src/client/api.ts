@@ -73,6 +73,17 @@ export interface AppConfig {
   vaultName: string;
 }
 
+/** S7-9 — masked preview payload for wikilink hover and note transclusion. */
+export interface NotePreview {
+  target: string;
+  resolved: boolean;
+  relPath?: string;
+  title?: string;
+  folder?: string;
+  content?: string;
+  excerpt?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -157,6 +168,8 @@ export const api = {
     ),
   getSource: (p: string) =>
     response<Document>(`/api/docs/${encodeURIComponent(p)}/source`),
+  notePreview: (target: string) =>
+    req<NotePreview>(`/api/note-preview?target=${encodeURIComponent(target)}`),
   saveDoc: (p: string, content: string, etag: string) =>
     response<{ ok: boolean; meta?: unknown }>(
       `/api/docs/${encodeURIComponent(p)}`,

@@ -2,11 +2,12 @@ import { useMemo } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
+import { formatBlockRef } from '../../shared/block-refs';
 
 marked.setOptions({ gfm: true, breaks: true });
 
 /** Encode a vault-relative path while keeping `/` separators literal. */
-const encPath = (p: string) =>
+export const encPath = (p: string) =>
   p.split('/').map((seg) => encodeURIComponent(seg)).join('/');
 
 function isExternalHref(href: string): boolean {
@@ -42,24 +43,56 @@ export function splitTitle(body: string): { title: string; rest: string } {
   return { title, rest };
 }
 
+const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i;
+
+/** `![[image.png|300]]` → a width in pixels; anything else is alt text. */
+function embedWidth(alias: string | undefined): string | undefined {
+  if (!alias) return undefined;
+  const m = /^(\d+)(?:x(\d+))?$/.exec(alias.trim());
+  return m ? m[1] : undefined;
+}
+
 /**
  * Renders Markdown + Obsidian wiki-links/callouts/images into safe HTML.
  * Unsupported Obsidian syntax is left untouched (source integrity) and simply
- * shown as text.
+ * shown as text. Note embeds (`![[Note]]`) are transcluded by
+ * `MarkdownWithEmbeds`; here they degrade to a wikilink so the safe rendered
+ * form never loses the reference.
  */
-export function Markdown({ content, baseFolder }: { content: string; baseFolder?: string }) {
+export function Markdown({
+  content,
+  baseFolder,
+  refTarget,
+}: {
+  content: string;
+  baseFolder?: string;
+  /** Current note name — the target used when copying a block reference. */
+  refTarget?: string;
+}) {
   const navigate = useNavigate();
   const html = useMemo(() => renderMarkdown(content, baseFolder), [content, baseFolder]);
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const a = (e.target as HTMLElement).closest('a') as HTMLAnchorElement | null;
+    const el = e.target as HTMLElement;
+
+    // 0) Block anchors copy a resolvable `[[Note#^block-id]]` reference.
+    const anchor = el.closest('.block-anchor') as HTMLElement | null;
+    if (anchor) {
+      e.preventDefault();
+      const id = anchor.getAttribute('data-block-id');
+      if (id) void navigator.clipboard?.writeText(formatBlockRef(refTarget ?? '', id));
+      return;
+    }
+
+    const a = el.closest('a') as HTMLAnchorElement | null;
     if (!a) return;
 
     // 1) Wiki links carry the raw target (resolved server-side by title/alias).
     const wikilink = a.getAttribute('data-wikilink');
     if (wikilink) {
       e.preventDefault();
-      navigate(`/note/${encPath(wikilink)}`);
+      const block = a.getAttribute('data-wikilink-block');
+      navigate(`/note/${encPath(wikilink)}${block ? `#^${block}` : ''}`);
       return;
     }
 
@@ -83,7 +116,7 @@ export function Markdown({ content, baseFolder }: { content: string; baseFolder?
 }
 
 // Renders wiki links as anchors with a data attribute the click handler reads.
-function renderMarkdown(content: string, baseFolder = ''): string {
+export function renderMarkdown(content: string, baseFolder = ''): string {
   // 0) Strip frontmatter so YAML never leaks into the rendered article.
   content = stripFrontmatter(content);
 
@@ -110,19 +143,28 @@ function renderMarkdown(content: string, baseFolder = ''): string {
       alias = inner.slice(pipe + 1).trim();
       target = inner.slice(0, pipe);
     }
+    let block: string | undefined;
     const hash = target.indexOf('#');
-    if (hash !== -1) target = target.slice(0, hash);
+    if (hash !== -1) {
+      const after = target.slice(hash + 1);
+      target = target.slice(0, hash);
+      // `[[Note#^block-id]]` keeps a resolvable block reference.
+      if (after.startsWith('^')) block = after.slice(1).trim();
+    }
     const clean = target.trim();
 
     // Embed of an image/attachment → render an <img>, not a link.
-    if (bang === '!' && /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(clean)) {
+    if (bang === '!' && IMAGE_RE.test(clean)) {
       const src = `/api/attachment/${encodeURIComponent(clean)}`;
-      const alt = escapeHtml(alias ?? clean);
-      return `<img src="${src}" alt="${alt}" class="embed-image" loading="lazy" />`;
+      const width = embedWidth(alias);
+      const alt = escapeHtml(width ? clean : (alias ?? clean));
+      const widthAttr = width ? ` width="${width}"` : '';
+      return `<img src="${src}" alt="${alt}" class="embed-image" loading="lazy"${widthAttr} />`;
     }
 
     const label = escapeHtml(alias ?? clean);
-    return `<a href="#/" data-wikilink="${escapeHtml(clean)}" class="wikilink">${label}</a>`;
+    const blockAttr = block ? ` data-wikilink-block="${escapeHtml(block)}"` : '';
+    return `<a href="#/" data-wikilink="${escapeHtml(clean)}"${blockAttr} class="wikilink">${label}</a>`;
   });
 
   // 3b) Standard markdown images ![alt](path) → resolve relative to the note
@@ -135,6 +177,15 @@ function renderMarkdown(content: string, baseFolder = ''): string {
     return `<img src="/api/raw/${enc}" alt="${escapeHtml(alt)}" class="embed-image" loading="lazy" />`;
   });
 
+  // 3c) Block anchors: a line-trailing `^block-id` becomes a copyable target.
+  //     Code was extracted above, and wikilinks were rewritten in step 3, so
+  //     only genuine anchors remain.
+  content = content.replace(
+    /(^|[ \t])\^([A-Za-z0-9-]+)[ \t]*$/gm,
+    (_m, lead, id) =>
+      `${lead}<span class="block-anchor" id="^${id}" data-block-id="${id}" role="button" tabindex="0" title="Copy block reference ^${id}">^${id}</span>`,
+  );
+
   // 4) Restore code blocks.
   content = content.replace(/\u0000CODE(\d+)\u0000/g, (_m, i) => codeBlocks[Number(i)]);
 
@@ -145,7 +196,7 @@ function renderMarkdown(content: string, baseFolder = ''): string {
     html = escapeHtml(content);
   }
   return DOMPurify.sanitize(html, {
-    ADD_ATTR: ['data-wikilink'],
+    ADD_ATTR: ['data-wikilink', 'data-wikilink-block', 'data-block-id'],
     ADD_TAGS: ['aside'],
   });
 }

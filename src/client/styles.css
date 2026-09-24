@@ -33,6 +33,14 @@
   --agent-status-finished: #37c877;
   --agent-status-cancelled: #6b7484;
   --agent-status-halted: #ff8a80;
+  /* S7-8/S7-9 properties + embed surfaces (dark) */
+  --prop-bg: #161a21;
+  --prop-border: #2a3140;
+  --prop-key: #9aa3b2;
+  --embed-bg: #161a21;
+  --embed-border: #2a3140;
+  --embed-badge-bg: #2b3a5c;
+  --embed-badge-fg: #cfe0ff;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 html[data-theme='light'] {
@@ -62,6 +70,14 @@ html[data-theme='light'] {
   --agent-status-finished: #1f9d55;
   --agent-status-cancelled: #6b7484;
   --agent-status-halted: #c0392b;
+  /* S7-8/S7-9 properties + embed surfaces (light) */
+  --prop-bg: #f6f7fa;
+  --prop-border: #e1e5ec;
+  --prop-key: #6b7484;
+  --embed-bg: #f6f7fa;
+  --embed-border: #e1e5ec;
+  --embed-badge-bg: #dbe7fb;
+  --embed-badge-fg: #1f4bb8;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -702,3 +718,88 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .agent-inline-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
 .agent-inline-card { font-family: inherit; }
 .agent-inline-body { margin: 8px 0; color: var(--text-dim); font-size: 12.5px; }
+
+/* ---------- S7-8 Properties (structured frontmatter) ---------- */
+.properties-editor {
+  background: var(--prop-bg);
+  border: 1px solid var(--prop-border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+.properties-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.properties-head h4 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
+.properties-hint { font-size: 12px; }
+.properties-rows { display: flex; flex-direction: column; gap: 6px; }
+.properties-empty { margin: 0; font-size: 12.5px; }
+.property-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.property-key { color: var(--prop-key); min-width: 120px; font-size: 12.5px; }
+.property-value-input {
+  flex: 1;
+  min-width: 160px;
+  background: var(--bg-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  font: inherit;
+}
+.property-value-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.property-value-static { flex: 1; min-width: 160px; color: var(--text-dim); }
+.property-comment { font-size: 12px; }
+.property-badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+}
+.property-readonly .property-value-static { opacity: 0.85; }
+.property-remove {
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  padding: 0 6px;
+  font-size: 15px;
+  line-height: 1;
+}
+.property-remove:hover:not(:disabled) { color: var(--err); background: none; }
+.properties-add { display: flex; gap: 6px; margin-top: 8px; }
+.property-key-input { width: 140px; background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 8px; }
+.properties-add .property-value-input { flex: 1; }
+.article-properties { margin: 0 0 16px; }
+
+/* ---------- S7-9 note embeds + block anchors ---------- */
+.markdown-with-embeds { display: contents; }
+.embed-note {
+  border: 1px solid var(--embed-border);
+  border-left: 3px solid var(--accent);
+  background: var(--embed-bg);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin: 12px 0;
+}
+.embed-note-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.embed-note-badge {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--embed-badge-bg);
+  color: var(--embed-badge-fg);
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+}
+.embed-note-link { font-size: 12.5px; }
+.embed-note-body { font-size: 14px; }
+.embed-note-loading, .embed-note-missing { color: var(--text-dim); font-size: 12.5px; }
+.embed-note .markdown-body > :first-child { margin-top: 0; }
+.embed-note .markdown-body > :last-child { margin-bottom: 0; }
+.block-anchor {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--text-dim);
+  cursor: copy;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+}
+.block-anchor:hover { color: var(--accent); background: var(--agent-hover-tint); }

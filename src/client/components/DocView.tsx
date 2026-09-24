@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import type { Document } from "../api";
 import { ApiError, api } from "../api";
 import { useAuth } from "../auth";
-import { Markdown, stripFrontmatter, splitTitle } from "./Markdown";
+import { stripFrontmatter, splitTitle } from "./Markdown";
+import { MarkdownWithEmbeds } from "./Embeds";
+import { PropertiesEditor } from "./PropertiesEditor";
 import { RatingStars } from "./RatingStars";
 import { Breadcrumbs } from "./Breadcrumbs";
 import {
@@ -26,6 +28,7 @@ export function DocView() {
   const { path: pathParam } = useParams();
   const lookup = pathParam ? decodeURIComponent(pathParam) : "";
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,6 +123,17 @@ export function DocView() {
   useEffect(() => {
     if (canEdit && mode !== "read") void agentConsole.refreshReservedIds();
   }, [canEdit, mode]);
+  // S7-9 — resolve a copied block reference: `/note/Note#^block-id` scrolls
+  // to the rendered block anchor once the target note is loaded.
+  useEffect(() => {
+    if (mode !== "read") return;
+    const raw = location.hash.replace(/^#/, "");
+    if (!raw.startsWith("^")) return;
+    const id = raw.slice(1);
+    if (!/^[A-Za-z0-9-]+$/.test(id)) return;
+    const el = document.querySelector(`[data-block-id="${id}"]`);
+    el?.scrollIntoView?.({ block: "center" });
+  }, [location.hash, doc, mode]);
   useEffect(() => {
     const fn = (e: BeforeUnloadEvent) => {
       if (dirty) {
@@ -455,22 +469,49 @@ export function DocView() {
                 <summary>File info</summary>
                 <Meta meta={meta} />
               </details>
+              <PropertiesEditor
+                source={doc.content}
+                readOnly
+                className="article-properties"
+              />
               {canEdit && agentsOn ? (
                 <AgentBlocksView content={rest} baseFolder={meta.folder} />
               ) : (
-                <Markdown content={rest} baseFolder={meta.folder} />
+                <MarkdownWithEmbeds
+                  content={rest}
+                  baseFolder={meta.folder}
+                  refTarget={meta.baseName}
+                />
               )}
             </article>
           )}
           {mode === "split" && (
             <>
+              <PropertiesEditor
+                source={draft}
+                onChange={setDraft}
+                className="doc-properties"
+              />
               {editor}
               <div className="preview-pane">
-                <Markdown content={draft} baseFolder={meta.folder} />
+                <MarkdownWithEmbeds
+                  content={draft}
+                  baseFolder={meta.folder}
+                  refTarget={meta.baseName}
+                />
               </div>
             </>
           )}
-          {mode === "edit" && editor}
+          {mode === "edit" && (
+            <>
+              <PropertiesEditor
+                source={draft}
+                onChange={setDraft}
+                className="doc-properties"
+              />
+              {editor}
+            </>
+          )}
           {canEdit && mode !== "read" && agentConsole.blocks.length > 0 && (
             <div className="agent-inline-list" aria-label="Inline agent block controls">
               {agentConsole.blocks.map((block, i) => (

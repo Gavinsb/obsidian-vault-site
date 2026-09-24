@@ -335,6 +335,33 @@ export function createApi(
       }),
     });
   });
+  r.get("/note-preview", async (req, res) => {
+    // S7-9 — masked hover preview and transclusion source. Same masking
+    // guarantee as a public document read: an anonymous caller can never
+    // receive agent-block text, proposals, reviewer feedback or agent IDs.
+    const target = str(req.query.target);
+    if (!target) return res.status(400).json({ error: "target_required" });
+    res.setHeader("Cache-Control", "public, max-age=30");
+    try {
+      const doc = await resolveDoc(service, target);
+      if (!doc) return res.json({ target, resolved: false });
+      // Frontmatter never leaks into a preview; agent blocks are masked first.
+      const content = parseFrontmatter(maskAgentBlocks(doc.content)).content;
+      const meta = service.index.notes.get(doc.meta.relPath)?.meta ?? doc.meta;
+      res.json({
+        target,
+        resolved: true,
+        relPath: doc.meta.relPath,
+        title: meta.title,
+        folder: meta.folder,
+        content,
+        excerpt: previewExcerpt(content),
+      });
+    } catch {
+      // Unresolvable/unsafe targets are simply "no preview", never an error.
+      res.json({ target, resolved: false });
+    }
+  });
   r.get("/search", (req, res) => {
     const query = String(req.query.q ?? "");
     const filters: SearchFilters = {
@@ -467,6 +494,18 @@ export function createApi(
     }
   });
   return r;
+}
+/** Plain-text excerpt of already-masked markdown for a hover preview. */
+function previewExcerpt(markdown: string): string {
+  const text = markdown
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/~~~[\s\S]*?~~~/g, " ")
+    .replace(/!\[\[[^\]]*\]\]/g, " ")
+    .replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, "$1")
+    .replace(/[#>*_`~]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.slice(0, 240);
 }
 async function resolveDoc(service: VaultService, rel: string) {
   let doc = await service.getDocument(rel);
