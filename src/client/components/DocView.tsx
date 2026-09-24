@@ -8,10 +8,15 @@ import { RatingStars } from "./RatingStars";
 import { Breadcrumbs } from "./Breadcrumbs";
 import {
   acceptAgentReview,
-  parseAgentBlocks,
   rejectAgentReview,
 } from "../../shared/agent-blocks";
-import { Editor, selectRange } from "./Editor";
+import {
+  AgentConsolePanel,
+  AgentInlineCard,
+  isSaveBlocked,
+  useAgentConsole,
+} from "./AgentConsole";
+import { Editor } from "./Editor";
 import type { AtomicCodeMirrorEditorHandle } from "@atomic-editor/editor";
 import { EditingHelp } from "./EditingHelp";
 import { AgentBlocksView } from "./AgentBlocksView";
@@ -39,7 +44,6 @@ export function DocView() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmExternal, setConfirmExternal] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
-  const [rejectId, setRejectId] = useState<string | null>(null);
   const [agentsOn, setAgentsOn] = useState<boolean>(() => {
     try {
       return localStorage.getItem("kv.agentBlocksView") === "1";
@@ -53,8 +57,19 @@ export function DocView() {
   const seq = useRef(0);
   const canonicalPath = doc?.meta.relPath ?? lookup;
   const dirty = draft !== baseline;
-  const reviews = parseAgentBlocks(draft);
   const canEdit = !!user;
+  // S7-6/S7-7 — one console store per document. The side panel and the inline
+  // cards read this same parsed state, so they cannot disagree (LOCKED Q9).
+  // Accept/Reject stay draft-only: they never touch the network.
+  const agentConsole = useAgentConsole({
+    source: draft,
+    baseline,
+    path: canonicalPath,
+    onChange: setDraft,
+    onAccept: (id) => setDraft(acceptAgentReview(draft, id)),
+    onReject: (id) => setDraft(rejectAgentReview(draft, id)),
+  });
+  const saveBlocked = isSaveBlocked(agentConsole.findings);
   const loadPublic = async (p: string, spin = true, wantAgents = agentsOn) => {
     if (spin) setLoading(true);
     setError(null);
@@ -100,6 +115,11 @@ export function DocView() {
     }, 4000);
     return () => clearInterval(t);
   }, [canonicalPath, mode, agentsOn]);
+  // Reserved IDs (vault + sweep log) power generation and R3; only needed
+  // inside an editing session, and never for anonymous readers.
+  useEffect(() => {
+    if (canEdit && mode !== "read") void agentConsole.refreshReservedIds();
+  }, [canEdit, mode]);
   useEffect(() => {
     const fn = (e: BeforeUnloadEvent) => {
       if (dirty) {
@@ -153,6 +173,12 @@ export function DocView() {
   };
   const onSave = async (etag = baseEtag, explicitOverwrite = false) => {
     if (saving || !dirty || (!explicitOverwrite && !!conflict)) return;
+    // S7-7 Save gate: a blocking finding on a session-edited block must be
+    // fixed before the draft can be persisted (no escape hatch).
+    if (saveBlocked) {
+      setFlash({ kind: "warn", msg: "Fix the blocking validator findings before saving." });
+      return;
+    }
     setSaving(true);
     setFlash(null);
     try {
@@ -332,7 +358,7 @@ export function DocView() {
           <button
             className="primary"
             onClick={() => void onSave()}
-            disabled={saving || !dirty || !baseEtag || !!conflict}
+            disabled={saving || !dirty || !baseEtag || !!conflict || saveBlocked}
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -340,6 +366,11 @@ export function DocView() {
             Cancel
           </button>
           {dirty && <span className="saved-hint">Unsaved changes</span>}
+          {saveBlocked && (
+            <span className="saved-hint blocked">
+              Save is disabled: blocking validator findings on edited blocks.
+            </span>
+          )}
           {savedAt && (
             <span className="saved-hint">
               Last saved {savedAt.toLocaleTimeString()}
@@ -412,50 +443,8 @@ export function DocView() {
           </button>
         </div>
       )}
-      {mode !== "read" && reviews.length > 0 && (
-        <section className="card review-panel">
-          <h3>Agent staging</h3>
-          <p>
-            {reviews.filter((x) => x.type === "agent").length} instruction(s),{" "}
-            {reviews.filter((x) => x.type === "agent-review").length} review(s).
-            No model is executed by this site.
-          </p>
-          {reviews.map((b, i) => (
-            <div className="review-row" key={`${b.start}-${i}`}>
-              <code>
-                {b.type} {b.id ?? b.target ?? `@${b.start}`}
-              </code>
-              <button
-                onClick={() => selectRange(editorHandle.current, b.start, b.end)}
-              >
-                Go to source
-              </button>
-              {b.type === "agent-review" && b.id && (
-                <>
-                  <button
-                    onClick={() => setDraft(acceptAgentReview(draft, b.id!))}
-                  >
-                    Accept into draft
-                  </button>
-                  <button className="danger" onClick={() => setRejectId(b.id!)}>
-                    Reject…
-                  </button>
-                  {rejectId === b.id && (
-                    <button
-                      className="danger"
-                      onClick={() => {
-                        setDraft(rejectAgentReview(draft, b.id!));
-                        setRejectId(null);
-                      }}
-                    >
-                      Confirm reject
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-        </section>
+      {canEdit && mode !== "read" && (agentConsole.blocks.length > 0 || agentConsole.findings.length > 0) && (
+        <AgentConsolePanel state={agentConsole} editorHandleRef={editorHandle} />
       )}
       <div className={`doc-body${mode === "split" ? " split" : ""}`}>
         <div className="doc-main">
@@ -482,6 +471,18 @@ export function DocView() {
             </>
           )}
           {mode === "edit" && editor}
+          {canEdit && mode !== "read" && agentConsole.blocks.length > 0 && (
+            <div className="agent-inline-list" aria-label="Inline agent block controls">
+              {agentConsole.blocks.map((block, i) => (
+                <AgentInlineCard
+                  key={`${block.start}-${i}`}
+                  state={agentConsole}
+                  block={block}
+                  editorHandleRef={editorHandle}
+                />
+              ))}
+            </div>
+          )}
         </div>
         <aside className="doc-context">
           <section className="context-block">

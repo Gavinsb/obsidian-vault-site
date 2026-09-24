@@ -307,12 +307,16 @@ export function createApi(
     res.json({ ...doc, meta: publicMeta, content });
   });
 
-  r.get("/agent/ids", auth.requireUser, async (_req, res) => {
+  r.get("/agent/ids", auth.requireUser, async (req, res) => {
     // Session-gated reserved-ID set (vault notes + sweep log). IDs only —
-    // never agent instructions, proposals or note content.
+    // never agent instructions, proposals or note content. `path` excludes the
+    // note being validated so its own blocks are not reported as collisions.
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("Vary", "Cookie");
-    res.json({ ids: await agentIds.reserved() });
+    res.json({
+      ids: await agentIds.reserved(str(req.query.path)),
+      externalIds: await agentIds.externalReserved(),
+    });
   });
   r.get("/completions", async (req, res) => {
     const kind = String(req.query.kind ?? "note");

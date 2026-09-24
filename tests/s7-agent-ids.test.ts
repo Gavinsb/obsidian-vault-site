@@ -107,4 +107,17 @@ describe("S7 vault-wide reserved agent IDs", () => {
     expect(r.res.headers.get("cache-control")).toBe("private, no-store");
     expect(JSON.stringify(r.body)).not.toMatch(/secret|\[!agent/);
   });
+  it("excludes the validated note's own IDs and separates the sweep-log set", async () => {
+    await login();
+    const all = await call("/agent/ids");
+    expect(all.body.ids).toContain("ABC123");
+    expect(all.body.ids).toContain("ZAHCV0");
+    expect(all.body.externalIds).toEqual(["ZAHCV0"]);
+
+    const excluded = await call("/agent/ids?path=" + encodeURIComponent("A.md"));
+    // The note being validated must not report its own block as a collision.
+    expect(excluded.body.ids).not.toContain("ABC123");
+    // External sweep-log IDs still collide.
+    expect(excluded.body.ids).toContain("ZAHCV0");
+  });
 });

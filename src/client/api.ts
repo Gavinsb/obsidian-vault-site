@@ -137,7 +137,10 @@ export const api = {
   getDoc: (p: string) => req<Document>(`/api/docs/${encodeURIComponent(p)}`),
   getDocAgents: (p: string) =>
     req<Document>(`/api/docs/${encodeURIComponent(p)}?agents=1`),
-  agentIds: () => req<{ ids: string[] }>("/api/agent/ids"),
+  agentIds: (path?: string) =>
+    req<{ ids: string[]; externalIds?: string[] }>(
+      "/api/agent/ids" + (path ? `?path=${encodeURIComponent(path)}` : ""),
+    ),
   completions: (
     kind: "note" | "tag" | "heading" | "blockref" | "callout",
     q: string,

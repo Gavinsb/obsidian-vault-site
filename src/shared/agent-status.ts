@@ -49,6 +49,30 @@ export function canonicaliseStatus(value: string): AgentStatus | null {
   return (AGENT_STATUSES as readonly string[]).includes(value) ? value as AgentStatus : null;
 }
 
+/**
+ * Human-readable legend for the seven canonical statuses. Defined once here so
+ * the read-view pill, the console dropdown, panel rows and inline cards all
+ * describe a status the same way (spec §10, "define once, consume everywhere").
+ */
+export const STATUS_LEGEND: Readonly<Record<AgentStatus, string>> = Object.freeze({
+  new: "Awaiting processing.",
+  HRR: "Human Review Required — the proposal is waiting for a human decision.",
+  apply: "Authorised for application by the external OpenClaw sweep. The site executes nothing.",
+  rejected: "Awaiting revision on reviewer feedback.",
+  finished: "Successfully applied. Set by the OpenClaw sweep only.",
+  cancelled: "Abandoned; the proposal was not applied.",
+  halted: "Safety or integrity failure; needs a human.",
+});
+
+/** Legend lookup for an unknown/legacy status value. */
+export function statusLegend(status: string | undefined | null): string {
+  const canonical = status ? canonicaliseStatus(status) : null;
+  if (canonical) return STATUS_LEGEND[canonical];
+  return status
+    ? `${status} is not one of the seven canonical agent statuses (${AGENT_STATUSES.join(", ")}).`
+    : `No agent status is set. Canonical statuses: ${AGENT_STATUSES.join(", ")}.`;
+}
+
 export type AgentHeaderType = "agent" | "agent-review";
 export interface ParsedAgentHeader {
   type: AgentHeaderType;

@@ -32,16 +32,18 @@ export function idsFromNote(content: string): string[] {
 
 interface CacheEntry {
   signature: string;
+  excludePath: string;
   ids: string[];
 }
 
 /**
  * Cached reserved-ID set. The cache is keyed on the in-memory index signature
- * (relPath + mtime + size), so a vault change or reindex invalidates it without
- * re-reading every note on each request.
+ * (relPath + mtime + size) plus the excluded note, so a vault change or reindex
+ * invalidates it without re-reading every note on each request.
  */
 export class AgentIdIndex {
   private cache: CacheEntry | null = null;
+  private externalCache: { signature: string; ids: string[] } | null = null;
 
   constructor(private readonly service: VaultService) {}
 
@@ -52,20 +54,12 @@ export class AgentIdIndex {
       .join("|");
   }
 
-  async reserved(): Promise<string[]> {
+  /** IDs referenced by Agent_Sweep_Log.md only — the source-less external set. */
+  async externalReserved(): Promise<string[]> {
     const signature = this.signature();
-    if (this.cache && this.cache.signature === signature) return this.cache.ids;
-
+    if (this.externalCache && this.externalCache.signature === signature)
+      return this.externalCache.ids;
     const ids = new Set<string>();
-    for (const note of this.service.index.notes.values()) {
-      try {
-        const full = await this.service.provider.readDocument(note.meta.relPath);
-        if (full?.content) for (const id of idsFromNote(full.content)) ids.add(id);
-      } catch {
-        // A note that vanished mid-scan is simply skipped.
-      }
-    }
-
     if (this.service.index.notes.has(SWEEP_LOG_PATH)) {
       try {
         const sweep = await this.service.provider.readDocument(SWEEP_LOG_PATH);
@@ -74,9 +68,40 @@ export class AgentIdIndex {
         // Absent sweep log is not an error.
       }
     }
+    const sorted = [...ids].sort();
+    this.externalCache = { signature, ids: sorted };
+    return sorted;
+  }
+
+  /**
+   * Reserved IDs across the vault plus the sweep log. Pass `excludePath` (the
+   * note being validated) so its own agent blocks are not reported as reserved
+   * collisions — R3 must not flag the block that is being edited.
+   */
+  async reserved(excludePath?: string): Promise<string[]> {
+    const signature = this.signature();
+    if (
+      this.cache &&
+      this.cache.signature === signature &&
+      this.cache.excludePath === (excludePath ?? "")
+    )
+      return this.cache.ids;
+
+    const ids = new Set<string>();
+    for (const note of this.service.index.notes.values()) {
+      if (excludePath && note.meta.relPath === excludePath) continue;
+      try {
+        const full = await this.service.provider.readDocument(note.meta.relPath);
+        if (full?.content) for (const id of idsFromNote(full.content)) ids.add(id);
+      } catch {
+        // A note that vanished mid-scan is simply skipped.
+      }
+    }
+
+    for (const id of await this.externalReserved()) ids.add(id);
 
     const sorted = [...ids].sort();
-    this.cache = { signature, ids: sorted };
+    this.cache = { signature, excludePath: excludePath ?? "", ids: sorted };
     return sorted;
   }
 }

@@ -4,6 +4,7 @@ import {
   type AgentBlock,
   type BodySegment,
 } from "../../shared/agent-blocks";
+import { canonicaliseStatus, statusLegend } from "../../shared/agent-status";
 import { Markdown } from "./Markdown";
 
 /**
@@ -67,7 +68,10 @@ function AdminBlockCard({
   const roleText =
     role === "start" ? "Start " : role === "end" ? "End " : "";
   const target = block.target ? `TARGET: ${block.target}` : "";
-  const status = block.metadata?.status ?? "";
+  // Read mode speaks the canonical vocabulary and carries the legend tooltip;
+  // a legacy value is still shown, but marked as non-canonical.
+  const rawStatus = block.metadata?.status ?? "";
+  const status = canonicaliseStatus(rawStatus);
   return (
     <div
       className={`admin-instruction-block ${role}-block`}
@@ -80,7 +84,15 @@ function AdminBlockCard({
           {idText}
         </span>
         {target && <span className="admin-target mono">{target}</span>}
-        {status && <span className="admin-status mono">{status}</span>}
+        {rawStatus && (
+          <span
+            className={`admin-status${status ? ` status-${status.toLowerCase()}` : " legacy"}`}
+            data-status={status ?? rawStatus}
+            title={statusLegend(rawStatus)}
+          >
+            {status ?? rawStatus}
+          </span>
+        )}
       </div>
       {block.content && (
         <div className="admin-block-content">
