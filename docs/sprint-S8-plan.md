@@ -1,6 +1,6 @@
 # Sprint S8 Implementation Plan — Editor Modes, Header Layout & Tables
 
-**Status:** PLANNED 2026-09-24 — Q1–Q3, Q5, Q7 answered; Q4 and Q6 pending; awaiting "start build".
+**Status:** PLANNED 2026-09-24 — Q1–Q5 and Q7 answered; Q6 pending; awaiting "start build".
 **Sprint:** S8 (20 items, `S8-1` … `S8-20`)
 **Opened:** 2026-09-24 (collection) · **Plan:** 2026-09-24
 **Repository:** `Gavinsb/obsidian-vault-site`
@@ -33,6 +33,7 @@ Fix the note header layout and the editing experience surfaced by the 2026-09-24
 5. **Table row/column controls are added by patching and vendoring the editor package in-repo** — a local workspace copy of `@atomic-editor/editor@0.6.2` whose `table-widget` gains the visible affordances (S8-17/18/19). Upstream later. *(Answered 2026-09-24, Q2 = option a.)*
 6. **The read article drops both File info and Properties** — they live in the right rail only; the duplicated collapsible cards are removed from the article. *(Answered 2026-09-24, Q5 = both.)*
 7. **One S8 release** — all waves ship together; no mid-sprint checkpoint after W1. *(Answered 2026-09-24, Q7.)*
+8. **Save gate narrowed to changed blocks with an admin-only override** — a `blocking` finding is enforced only if its block is in the diff between `baseline` and `draft`; findings on untouched blocks stay advisory; Save stays disabled only while an *enforced* finding exists; an admin sees "Save anyway" when only narrowed-to-advisory findings remain; an enforced finding stays hard-blocked with no override. *(Answered 2026-09-24, Q4 = yes to a/b/c as proposed.)*
 
 Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
@@ -46,7 +47,7 @@ Everything else is as collected in `docs/sprints.md` (S8-1 … S8-20).
 
 **Q3 — S8-18 symptom confirmation — ANSWERED 2026-09-24 (yes).** Clicking/tapping a table cell does **not** put the caret in the cell on Gav's device, so S8-18 is a **bug fix**, not a discoverability fix.
 
-**Q4 — S8-11 validator Save gate — detail (decision needed).**
+**Q4 — S8-11 validator Save gate — ANSWERED 2026-09-24 (yes to a/b/c as proposed).**
 Today `isSaveBlocked()` disables Save whenever *any* finding is `blocking`, with no override; S7 decision #5 already scopes *blocking* to agent blocks edited this session, with untouched legacy errors advisory. S8-11 narrows it further so an unrelated edit is never blocked.
 
 Proposed behaviour:
