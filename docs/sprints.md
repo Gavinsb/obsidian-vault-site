@@ -10,11 +10,13 @@ as e.g. `S4-3`.
 
 ---
 
-## S8 — open 📋
+## S8 — planned 🗺
 
-- **Status:** open — items collected, awaiting "start plan"
+- **Status:** planned — awaiting "start build" (7 clarifying questions Q1–Q7 pending)
 - **Opened:** 2026-09-24 (collection) — review of `eb439a0`, focus header layout + article edit functions
+- **Planned:** 2026-09-24
 - **Decisions (Gav, 2026-09-24):** remove Split view entirely; add a Raw markdown source editor back as an option; ratings and favourite become read-only-mode affordances only (not available while editing).
+- **Detailed plan:** [`docs/sprint-S8-plan.md`](sprint-S8-plan.md) — objective, locked decisions, as-built constraints, waves W0–W6, verification plan, open questions Q1–Q7.
 - **Items (20):**
   1. **S8-1 — Remove Split view:** drop the `split` mode (button, state, and the `.doc-body.split` grid CSS); the mode toggle becomes Read / Edit.
   2. **S8-2 — Add a Raw source editor option:** `Read | Edit | Raw`, where Raw shows the plain markdown source (simple textarea / plain CM6) with no live preview or block chrome; same Save/Cancel/ETag contract; remember the last choice (like `kv.agentBlocksView`).
@@ -36,7 +38,7 @@ as e.g. `S4-3`.
   18. **S8-18 — Fix cell focus on click/tap:** a plain click on a cell should place the caret inside it so typing edits that cell; today it can focus the outer editor and send the keystrokes into the document body.
   19. **S8-19 — Final row/column behaviour:** define what deleting the last body row or last column does (e.g. convert the table to a paragraph) instead of silently doing nothing.
   20. **S8-20 — Document tables in the Editing help:** cover creation, the row/column menu, Tab/Enter navigation and cell editing (folds into S8-13).
-- **Plan:** not started — awaiting "start plan"
+- **Plan:** complete 2026-09-24 — see [`docs/sprint-S8-plan.md`](sprint-S8-plan.md); awaiting answers to Q1–Q7
 - **Build:** not started — awaiting "start build"
 
 ---
