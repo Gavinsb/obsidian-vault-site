@@ -15,7 +15,7 @@ as e.g. `S4-3`.
 - **Status:** open — items collected, awaiting "start plan"
 - **Opened:** 2026-09-24 (collection) — review of `eb439a0`, focus header layout + article edit functions
 - **Decisions (Gav, 2026-09-24):** remove Split view entirely; add a Raw markdown source editor back as an option; ratings and favourite become read-only-mode affordances only (not available while editing).
-- **Items (14):**
+- **Items (20):**
   1. **S8-1 — Remove Split view:** drop the `split` mode (button, state, and the `.doc-body.split` grid CSS); the mode toggle becomes Read / Edit.
   2. **S8-2 — Add a Raw source editor option:** `Read | Edit | Raw`, where Raw shows the plain markdown source (simple textarea / plain CM6) with no live preview or block chrome; same Save/Cancel/ETag contract; remember the last choice (like `kv.agentBlocksView`).
   3. **S8-3 — Ratings + favourite only in read mode:** show "Rate this page" and ☆ only when `mode === "read"`; hide them while editing. Also removes the stale-ETag conflict they caused on the next Save (`mutate()` never refreshed `baseEtag`).
@@ -30,6 +30,12 @@ as e.g. `S4-3`.
   12. **S8-12 — Minor polish:** show the note title (muted) near the breadcrumbs while editing, and add an unsaved-changes guard before Delete navigates away.
   13. **S8-13 — Align the Editing-help text with the selected editor:** the help block describes a single editor regardless of mode; review and rewrite it so its guidance matches the editor actually in use (live-preview Edit vs Raw source), with only the shortcuts/triggers that apply there.
   14. **S8-14 — Show Editing help only in edit mode:** it currently renders in the right rail whenever the reader is signed in (including read-only); render it only in Edit/Raw modes.
+  15. **S8-15 — Table scaffold in the slash menu:** add a `Table` scaffold (`/table`) that inserts a starter table (header + separator + rows) and drops the caret in the first header cell — today there is no in-app way to create a table at all.
+  16. **S8-16 — Turn into Table:** add `Table` to the turn-into list (paragraph → starter table; table → paragraph/code).
+  17. **S8-17 — Visible row/column controls:** expose insert/delete row and column through visible handles (`+` / `⋮` on row and column edges) or a small in-table toolbar when the caret is inside a table, instead of the right-click-only menu.
+  18. **S8-18 — Fix cell focus on click/tap:** a plain click on a cell should place the caret inside it so typing edits that cell; today it can focus the outer editor and send the keystrokes into the document body.
+  19. **S8-19 — Final row/column behaviour:** define what deleting the last body row or last column does (e.g. convert the table to a paragraph) instead of silently doing nothing.
+  20. **S8-20 — Document tables in the Editing help:** cover creation, the row/column menu, Tab/Enter navigation and cell editing (folds into S8-13).
 - **Plan:** not started — awaiting "start plan"
 - **Build:** not started — awaiting "start build"
 
