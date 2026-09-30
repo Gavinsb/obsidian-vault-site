@@ -87,6 +87,11 @@ async function main() {
   app.disable("x-powered-by");
   app.set("trust proxy", loopback ? false : 1);
   app.use("/api", createApi(service, config, auth));
+  app.get("/diagrams/kx-vault-archify-diagram.html", (_req, res) => {
+    res.sendFile(
+      path.resolve(__dirname, "../../docs/kx-vault-archify-diagram.html"),
+    );
+  });
 
   // Serve built client if present (production), else dev handles the rest.
   const clientDist = path.resolve(__dirname, "../../dist/client");
