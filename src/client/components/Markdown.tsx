@@ -11,7 +11,7 @@ export const encPath = (p: string) =>
   p.split('/').map((seg) => encodeURIComponent(seg)).join('/');
 
 function isExternalHref(href: string): boolean {
-  return /^(https?:|mailto:|tel:|data:|javascript:|\/\/|#)/i.test(href);
+  return /^(https?:|mailto:|tel:|data:|javascript:|\/\/|\/|#)/i.test(href);
 }
 
 /** Resolve a note-relative image path against the note's folder (vault-relative). */
@@ -97,6 +97,8 @@ export function Markdown({
     }
 
     // 2) Internal markdown links (relative .md targets) navigate too.
+    // Absolute app/server paths fall through so routes like /diagrams/... open
+    // directly instead of being rewritten as vault note paths.
     const href = a.getAttribute('href') || '';
     if (href && !isExternalHref(href)) {
       e.preventDefault();

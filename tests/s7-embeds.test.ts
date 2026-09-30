@@ -148,6 +148,42 @@ const previewApi = (payload: Record<string, unknown>): PreviewApi => ({
 });
 
 describe("S7-9 transclusion", () => {
+  it("lets absolute app paths open as browser links", () => {
+    const host = mount(
+      createElement(Markdown, {
+        content: "[Diagram](/diagrams/kx-vault-archify-diagram.html)",
+      }),
+    );
+    const link = host.querySelector("a")!;
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+
+    let dispatched = false;
+    act(() => {
+      dispatched = link.dispatchEvent(event);
+    });
+
+    expect(dispatched).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("still routes relative markdown links as notes", () => {
+    const host = mount(
+      createElement(Markdown, {
+        content: "[Other](Other.md)",
+      }),
+    );
+    const link = host.querySelector("a")!;
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+
+    let dispatched = true;
+    act(() => {
+      dispatched = link.dispatchEvent(event);
+    });
+
+    expect(dispatched).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("splits note embeds out of the content but not out of code fences", () => {
     const segs = splitNoteEmbeds("Intro\n\n![[Beta Note]]\n\nOutro\n");
     expect(segs.map((s) => s.kind)).toEqual(["text", "note", "text"]);
