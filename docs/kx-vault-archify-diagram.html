@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doug KX Knowledge Vault Microsite - Architecture</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f8fa;
+        --ink: #20242c;
+        --muted: #58606d;
+        --line: #6b7280;
+        --surface: #ffffff;
+        --input: #e9f4ff;
+        --process: #ecfdf3;
+        --storage: #fff7ed;
+        --security: #f5f0ff;
+        --external: #eef2ff;
+        --risk: #fff1f2;
+        --shadow: rgba(15, 23, 42, 0.1);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111318;
+          --ink: #f5f7fb;
+          --muted: #b8c0cc;
+          --line: #9aa4b2;
+          --surface: #191d25;
+          --input: #12263a;
+          --process: #143223;
+          --storage: #352514;
+          --security: #251d36;
+          --external: #1d2440;
+          --risk: #3a1c22;
+          --shadow: rgba(0, 0, 0, 0.35);
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Arial, Helvetica, ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 32px 20px 44px;
+      }
+
+      header {
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+
+      .frame {
+        overflow-x: auto;
+        border: 1px solid color-mix(in srgb, var(--line), transparent 70%);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: 0 16px 40px var(--shadow);
+      }
+
+      svg {
+        display: block;
+        font-family:
+          Arial, Helvetica, ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+        min-width: 1240px;
+        width: 100%;
+        height: auto;
+      }
+
+      .label {
+        fill: var(--ink);
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .sub {
+        fill: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .tiny {
+        fill: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .lane-title {
+        fill: var(--ink);
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .node {
+        stroke: color-mix(in srgb, var(--line), transparent 38%);
+        stroke-width: 1.4;
+        rx: 8;
+        ry: 8;
+      }
+
+      .lane {
+        fill: none;
+        stroke: color-mix(in srgb, var(--line), transparent 64%);
+        stroke-width: 1.2;
+        rx: 10;
+        ry: 10;
+      }
+
+      .input {
+        fill: var(--input);
+      }
+
+      .process {
+        fill: var(--process);
+      }
+
+      .storage {
+        fill: var(--storage);
+      }
+
+      .security {
+        fill: var(--security);
+      }
+
+      .external {
+        fill: var(--external);
+      }
+
+      .risk {
+        fill: var(--risk);
+      }
+
+      .arrow {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 2.1;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        marker-end: url(#arrow);
+      }
+
+      .soft-arrow {
+        fill: none;
+        stroke: color-mix(in srgb, var(--line), transparent 28%);
+        stroke-width: 1.8;
+        stroke-dasharray: 6 6;
+        stroke-linecap: round;
+        marker-end: url(#arrow-soft);
+      }
+
+      .note {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 10px;
+      }
+
+      .note div {
+        border-left: 4px solid color-mix(in srgb, var(--line), transparent 40%);
+        padding: 8px 10px;
+        background: color-mix(in srgb, var(--surface), var(--bg) 30%);
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .note strong {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Doug KX Knowledge Vault Microsite</h1>
+        <p>
+          Archify-style architecture view of the local-first Obsidian vault
+          microsite, its runtime services, derived indexes, protected write path,
+          and public read surface.
+        </p>
+      </header>
+
+      <div class="frame" aria-label="Architecture diagram">
+        <svg viewBox="0 0 1240 880" role="img">
+          <title>Doug KX Knowledge Vault Microsite architecture</title>
+          <desc>
+            A layered architecture diagram showing user traffic through
+            Cloudflare quick tunnel into a local Express and React microsite,
+            backed by derived indexes and an authoritative Doug KX Obsidian
+            vault.
+          </desc>
+
+          <defs>
+            <marker
+              id="arrow"
+              markerWidth="11"
+              markerHeight="11"
+              refX="9"
+              refY="5.5"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path d="M 0 0 L 10 5.5 L 0 11 z" fill="var(--line)" />
+            </marker>
+            <marker
+              id="arrow-soft"
+              markerWidth="11"
+              markerHeight="11"
+              refX="9"
+              refY="5.5"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path
+                d="M 0 0 L 10 5.5 L 0 11 z"
+                fill="color-mix(in srgb, var(--line), transparent 28%)"
+              />
+            </marker>
+          </defs>
+
+          <rect x="24" y="28" width="1192" height="116" class="lane" />
+          <text x="44" y="56" class="lane-title">Access edge</text>
+
+          <rect x="64" y="76" width="188" height="52" class="node input" />
+          <text x="86" y="99" class="label">Browser users</text>
+          <text x="86" y="119" class="sub">public read, auth edit</text>
+
+          <rect x="330" y="76" width="226" height="52" class="node external" />
+          <text x="346" y="99" class="label">Cloudflare quick tunnel</text>
+          <text x="346" y="119" class="sub">rotating trycloudflare URL</text>
+
+          <rect x="634" y="76" width="216" height="52" class="node process" />
+          <text x="636" y="99" class="label">kv-cloudflared.service</text>
+          <text x="636" y="119" class="sub">systemd user unit</text>
+
+          <rect x="914" y="76" width="230" height="52" class="node process" />
+          <text x="936" y="99" class="label">127.0.0.1:18790</text>
+          <text x="936" y="119" class="sub">local-only app listener</text>
+
+          <path d="M 252 102 H 320" class="arrow" />
+          <path d="M 556 102 H 624" class="arrow" />
+          <path d="M 850 102 H 904" class="arrow" />
+
+          <rect x="24" y="178" width="1192" height="222" class="lane" />
+          <text x="44" y="206" class="lane-title">Microsite application</text>
+
+          <rect x="64" y="232" width="204" height="96" class="node input" />
+          <text x="88" y="258" class="label">React SPA</text>
+          <text x="88" y="282" class="sub">dashboard, search, graph</text>
+          <text x="88" y="302" class="sub">editor, health, admin</text>
+
+          <rect x="334" y="232" width="212" height="96" class="node process" />
+          <text x="358" y="258" class="label">Express API</text>
+          <text x="358" y="282" class="sub">docs, graph, tags, health</text>
+          <text x="358" y="302" class="sub">auth/session endpoints</text>
+
+          <rect x="612" y="232" width="224" height="96" class="node security" />
+          <text x="636" y="258" class="label">Auth and origin guard</text>
+          <text x="636" y="282" class="sub">public reads stay open</text>
+          <text x="636" y="302" class="sub">mutations are session-gated</text>
+
+          <rect x="902" y="232" width="234" height="96" class="node process" />
+          <text x="926" y="258" class="label">VaultService</text>
+          <text x="926" y="282" class="sub">orchestrates provider</text>
+          <text x="926" y="302" class="sub">index, watcher, history</text>
+
+          <path d="M 1028 128 V 202 H 166 V 222" class="arrow" />
+          <path d="M 268 280 H 324" class="arrow" />
+          <path d="M 546 280 H 602" class="arrow" />
+          <path d="M 836 280 H 892" class="arrow" />
+
+          <rect x="24" y="434" width="1192" height="222" class="lane" />
+          <text x="44" y="462" class="lane-title">Derived state and write path</text>
+
+          <rect x="64" y="500" width="214" height="96" class="node process" />
+          <text x="88" y="526" class="label">Indexer</text>
+          <text x="88" y="550" class="sub">frontmatter, links, tags</text>
+          <text x="88" y="570" class="sub">aliases, ratings, folders</text>
+
+          <rect x="332" y="500" width="214" height="96" class="node process" />
+          <text x="356" y="526" class="label">Search and graph</text>
+          <text x="356" y="550" class="sub">in-memory maps and sets</text>
+          <text x="356" y="570" class="sub">rebuildable from Markdown</text>
+
+          <rect x="600" y="500" width="234" height="96" class="node security" />
+          <text x="624" y="526" class="label">Conflict-safe writes</text>
+          <text x="624" y="550" class="sub">ETag + If-Match</text>
+          <text x="624" y="570" class="sub">temp, fsync, atomic rename</text>
+
+          <rect x="900" y="500" width="236" height="96" class="node process" />
+          <text x="924" y="526" class="label">Filesystem provider</text>
+          <text x="924" y="550" class="sub">path traversal guard</text>
+          <text x="924" y="570" class="sub">watcher reconciles changes</text>
+
+          <path d="M 1018 328 V 432" class="arrow" />
+          <path d="M 1018 432 C 1018 466 171 466 171 490" class="soft-arrow" />
+          <path d="M 278 548 H 322" class="arrow" />
+          <path d="M 546 548 H 590" class="soft-arrow" />
+          <path d="M 834 548 H 890" class="arrow" />
+
+          <rect x="24" y="690" width="1192" height="142" class="lane" />
+          <text x="44" y="718" class="lane-title">Persistent sources</text>
+
+          <rect x="64" y="746" width="252" height="56" class="node storage" />
+          <text x="88" y="770" class="label">Doug KX Obsidian vault</text>
+          <text x="88" y="791" class="sub">Markdown + Attachments are source of truth</text>
+
+          <rect x="394" y="746" width="236" height="56" class="node storage" />
+          <text x="418" y="770" class="label">project data/</text>
+          <text x="418" y="791" class="sub">derived caches, backups, auth.enc</text>
+
+          <rect x="708" y="746" width="218" height="56" class="node security" />
+          <text x="732" y="770" class="label">Secrets outside Git</text>
+          <text x="732" y="791" class="sub">session + encryption keys</text>
+
+          <rect x="994" y="746" width="150" height="56" class="node risk" />
+          <text x="1018" y="770" class="label">Known caveat</text>
+          <text x="1018" y="791" class="sub">quick tunnel rotates</text>
+
+          <path d="M 1018 596 V 630 C 1018 674 190 674 190 736" class="arrow" />
+          <path d="M 717 596 V 660 C 717 700 512 700 512 736" class="soft-arrow" />
+          <path d="M 724 328 V 410 C 724 630 806 694 806 736" class="soft-arrow" />
+          <path d="M 1069 128 V 736" class="soft-arrow" />
+
+          <rect x="68" y="365" width="360" height="26" class="node external" />
+          <text x="84" y="383" class="tiny">
+            Public API masks raw paths and agent-only blocks
+          </text>
+
+          <rect x="706" y="365" width="390" height="26" class="node storage" />
+          <text x="704" y="383" class="tiny">
+            App indexes are disposable; vault content remains durable
+          </text>
+        </svg>
+      </div>
+
+      <section class="note" aria-label="Diagram notes">
+        <div>
+          <strong>Source of truth:</strong> Markdown files and attachments in the
+          Doug KX vault. The microsite index is derived and rebuildable.
+        </div>
+        <div>
+          <strong>Write safety:</strong> authenticated saves require ETag
+          preconditions and use atomic filesystem writes.
+        </div>
+        <div>
+          <strong>Runtime:</strong> two user systemd units keep the local app and
+          quick tunnel alive outside any chat session.
+        </div>
+        <div>
+          <strong>Public surface:</strong> public reads are open; content,
+          account, and operational mutations are protected.
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
