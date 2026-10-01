@@ -6,7 +6,7 @@
   --text: #e6e9ef;
   --text-dim: #9aa3b2;
   --accent: #4f8cff;
-  --accent-soft: #2b3a5c;
+  --accent-soft: #1f293f;
   --ok: #37c877;
   --warn: #e0a63a;
   --err: #e2574f;
@@ -49,34 +49,34 @@ html[data-theme='light'] {
   --bg-card: #ffffff;
   --border: #e1e5ec;
   --text: #1c2230;
-  --text-dim: #6b7484;
-  --accent: #2f6fe4;
-  --accent-soft: #dbe7fb;
+  --text-dim: #5c6371;
+  --accent: #2a63cd;
+  --accent-soft: #e0eafb;
   --btn-bg: #f1f3f7;
   --btn-border: #c9d0dc;
   /* S6-1 blueprint agent-block palette (light) */
   --agent-block-bg: #f6f1e9;
   --agent-block-border: #b9a568;
-  --agent-badge-bg: #2f6fe4;
+  --agent-badge-bg: #2a63cd;
   --agent-badge-fg: #ffffff;
   --agent-pair-accent: #059669;
   --agent-pair-soft: rgba(5, 150, 105, 0.10);
   --agent-hover-tint: rgba(47, 111, 228, 0.05);
   /* S7-6/S7-7 agent status colours (light) */
-  --agent-status-new: #6b7484;
+  --agent-status-new: #5c6371;
   --agent-status-hrr: #b07b16;
-  --agent-status-apply: #2f6fe4;
+  --agent-status-apply: #2a63cd;
   --agent-status-rejected: #c0392b;
   --agent-status-finished: #1f9d55;
-  --agent-status-cancelled: #6b7484;
+  --agent-status-cancelled: #5c6371;
   --agent-status-halted: #c0392b;
   /* S7-8/S7-9 properties + embed surfaces (light) */
   --prop-bg: #f6f7fa;
   --prop-border: #e1e5ec;
-  --prop-key: #6b7484;
+  --prop-key: #5c6371;
   --embed-bg: #f6f7fa;
   --embed-border: #e1e5ec;
-  --embed-badge-bg: #dbe7fb;
+  --embed-badge-bg: #e0eafb;
   --embed-badge-fg: #1f4bb8;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -165,7 +165,7 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .view h1 { font-size: 22px; margin: 0 0 4px; }
 .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
 .view > .card + .card { margin-top: 16px; }
-.card h3 { margin: 0 0 10px; font-size: 15px; }
+.card h2, .card h3 { margin: 0 0 10px; font-size: 15px; }
 
 /* ---------- Dashboard ---------- */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 16px 0; }
@@ -316,7 +316,7 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .markdown-body pre { background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; overflow-x: auto; }
 .markdown-body code { background: var(--bg-alt); padding: 2px 5px; border-radius: 4px; font-size: 13px; }
 .markdown-body pre code { background: none; padding: 0; }
-.markdown-body blockquote { border-left: 3px solid var(--accent); margin: 10px 0; padding-left: 12px; color: var(--text-dim); }
+.markdown-body blockquote { border-left: 1px solid var(--accent); margin: 10px 0; padding-left: 12px; color: var(--text-dim); }
 /* ---------- S6-1 agent-block blueprint read view ---------- */
 .agent-blocks-view { max-width: 72ch; }
 .admin-instruction-block {
@@ -405,7 +405,7 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
   .encapsulated { margin-left: 6px; padding-left: 10px; }
 }
 .markdown-body .embed-image { max-width: 100%; height: auto; display: block; margin: 12px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
-.callout { border-left: 3px solid var(--accent); border-radius: 4px; background: var(--bg-alt); padding: 8px 12px; margin: 10px 0; }
+.callout { border-left: 1px solid var(--accent); border-radius: 4px; background: var(--bg-alt); padding: 8px 12px; margin: 10px 0; }
 .callout-title { font-weight: 700; text-transform: capitalize; margin-bottom: 4px; }
 .callout-warn, .callout-warning, .callout-danger { border-left-color: var(--warn); }
 .callout-success, .callout-ok { border-left-color: var(--ok); }
@@ -523,8 +523,8 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 
 /* ---------- Health ---------- */
 .health-item { flex-direction: column !important; align-items: flex-start !important; }
-.sev-critical { border-left: 3px solid var(--err); }
-.sev-warn { border-left: 3px solid var(--warn); }
+.sev-critical { border-left: 2px solid var(--err); }
+.sev-warn { border-left: 2px solid var(--warn); }
 
 /* ---------- Command palette ---------- */
 .palette-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: flex-start; padding-top: 15vh; z-index: 100; }
@@ -751,7 +751,7 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .agent-halt-note { color: var(--text-dim); font-size: 12px; }
 .agent-halt-text { margin: 0; white-space: pre-wrap; font-family: var(--font-mono); font-size: 12px; }
 .agent-findings { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-.agent-finding { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-left: 3px solid var(--border); padding: 4px 8px; background: var(--bg-alt); border-radius: var(--radius-sm); }
+.agent-finding { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-left: 1px solid var(--border); padding: 4px 8px; background: var(--bg-alt); border-radius: var(--radius-sm); }
 .agent-finding.sev-error { border-left-color: var(--err); }
 .agent-finding.sev-warning { border-left-color: var(--warn); }
 .agent-finding.sev-info { border-left-color: var(--text-dim); }
@@ -831,7 +831,7 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .markdown-with-embeds { display: contents; }
 .embed-note {
   border: 1px solid var(--embed-border);
-  border-left: 3px solid var(--accent);
+  border-left: 1px solid var(--accent);
   background: var(--embed-bg);
   border-radius: var(--radius);
   padding: 8px 12px;

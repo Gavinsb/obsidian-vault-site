@@ -147,7 +147,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
 
       <div className="dash-cols">
         <section className="card">
-          <h3>Recently modified</h3>
+          <h2>Recently modified</h2>
           {recent.length === 0 ? (
             <p className="muted">No documents yet.</p>
           ) : (
@@ -180,7 +180,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
         </section>
 
         <section className="card">
-          <h3>Vault activity</h3>
+          <h2>Vault activity</h2>
           <div className="activity-stats">
             <div>{activity?.pagesChangedToday ?? 0} changed today</div>
             <div>{activity?.pagesChangedThisWeek ?? 0} changed this week</div>
@@ -200,7 +200,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
         </section>
 
         <section className="card">
-          <h3>Activity timeline</h3>
+          <h2>Activity timeline</h2>
           <ul className="timeline-mini">
             {timeline.map((t, i) => (
               <li key={i}>
