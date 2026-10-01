@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T09:56:00Z",
+  "title": "Design System: Doug KX",
+  "extensions": {
+    "colorMeta": {
+      "obsidian-bg": {
+        "role": "neutral",
+        "displayName": "Obsidian Canvas",
+        "canonical": "#0f1115",
+        "tonalRamp": ["#08090b", "#0f1115", "#161a21", "#1b2029", "#262d39", "#3a4357", "#5c6371", "#9aa3b2"]
+      },
+      "panel-bg": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#161a21",
+        "tonalRamp": ["#0b0d11", "#12151b", "#161a21", "#1b2029", "#2a3140", "#3a4357", "#5c6371", "#9aa3b2"]
+      },
+      "card-bg": {
+        "role": "neutral",
+        "displayName": "Card",
+        "canonical": "#1b2029",
+        "tonalRamp": ["#0d1014", "#141821", "#1b2029", "#232a37", "#2a3140", "#3a4357", "#5c6371", "#9aa3b2"]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#2a3140",
+        "tonalRamp": ["#12161d", "#1b2029", "#232a37", "#2a3140", "#3a4357", "#4d5b74", "#6b7484", "#9aa3b2"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#e6e9ef",
+        "tonalRamp": ["#2a3140", "#3a4357", "#5c6371", "#7c8595", "#9aa3b2", "#c3cad6", "#e6e9ef", "#f6f7fa"]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Ink Dim",
+        "canonical": "#9aa3b2",
+        "tonalRamp": ["#2a3140", "#3a4357", "#4d5b74", "#6b7484", "#9aa3b2", "#b8c0cc", "#d6dbe4", "#eef0f4"]
+      },
+      "signal-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#4f8cff",
+        "tonalRamp": ["#0a1f45", "#12305f", "#1a4280", "#2456a3", "#2f6bc7", "#4f8cff", "#8fb4ff", "#d6e4ff"]
+      },
+      "signal-blue-soft": {
+        "role": "primary",
+        "displayName": "Signal Blue Soft",
+        "canonical": "#1f293f",
+        "tonalRamp": ["#0d1220", "#161d2c", "#1f293f", "#2b3a5c", "#3a4d78", "#4f6ba3", "#8fb4ff", "#d6e4ff"]
+      },
+      "control-surface": {
+        "role": "neutral",
+        "displayName": "Control Surface",
+        "canonical": "#232a37",
+        "tonalRamp": ["#12161d", "#1b2029", "#232a37", "#2a3140", "#3a4357", "#4d5b74", "#6b7484", "#9aa3b2"]
+      },
+      "control-border": {
+        "role": "neutral",
+        "displayName": "Control Border",
+        "canonical": "#3a4357",
+        "tonalRamp": ["#161a21", "#232a37", "#2a3140", "#3a4357", "#4d5b74", "#6b7484", "#9aa3b2", "#c3cad6"]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success",
+        "canonical": "#37c877",
+        "tonalRamp": ["#08281a", "#0d3d28", "#125437", "#186b47", "#1f9d55", "#37c877", "#7ee0a6", "#d6f6e3"]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Warning",
+        "canonical": "#e0a63a",
+        "tonalRamp": ["#3a2a05", "#5c440a", "#7d5e10", "#a07a16", "#c08f1f", "#e0a63a", "#f0cd82", "#fbf0d4"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger",
+        "canonical": "#e2574f",
+        "tonalRamp": ["#3a0f0c", "#5c1a16", "#7d2720", "#a03529", "#c0392b", "#e2574f", "#f09a94", "#fbdad7"]
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "On-Accent",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#3a4357", "#5c6371", "#9aa3b2", "#c3cad6", "#e6e9ef", "#f6f7fa", "#ffffff", "#ffffff"]
+      },
+      "warn-ink": {
+        "role": "tertiary",
+        "displayName": "Warn Ink",
+        "canonical": "#241a05",
+        "tonalRamp": ["#241a05", "#3a2a05", "#5c440a", "#7d5e10", "#a07a16", "#c08f1f", "#e0a63a", "#f0cd82"]
+      },
+      "scrim": {
+        "role": "neutral",
+        "displayName": "Scrim",
+        "canonical": "rgba(0, 0, 0, 0.5)",
+        "tonalRamp": ["rgba(0,0,0,0.15)", "rgba(0,0,0,0.25)", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.6)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.8)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page titles — the single h1 per view." },
+      "title": { "displayName": "Title", "purpose": "Card and section headings; hierarchy by weight, not size." },
+      "body": { "displayName": "Body", "purpose": "Default text size for the whole interface, including controls." },
+      "label": { "displayName": "Label", "purpose": "Metadata, counts, section eyebrows, breadcrumbs, status pills." },
+      "small": { "displayName": "Small", "purpose": "Chips, counts, and secondary metadata below body size." },
+      "micro": { "displayName": "Micro", "purpose": "Tiny inline affordances and caret hints." },
+      "nano": { "displayName": "Nano", "purpose": "Smallest uppercase badges and matched-field markers." },
+      "body-sm": { "displayName": "Body Small", "purpose": "Embed note bodies and dense secondary text." },
+      "stat": { "displayName": "Stat", "purpose": "Dashboard figure value — the large number over a quiet label." },
+      "prose-h1": { "displayName": "Prose H1", "purpose": "Document title in the reading/article view." },
+      "prose-h2": { "displayName": "Prose H2", "purpose": "Section headings inside a document." },
+      "prose-h3": { "displayName": "Prose H3", "purpose": "Subsection headings inside a document." },
+      "rank": { "displayName": "Rank", "purpose": "Knowledge Health rank figure." },
+      "cloud": { "displayName": "Tag Cloud", "purpose": "Data-driven tag chip size; the only type that scales with frequency, not role." },
+      "mono": { "displayName": "Mono", "purpose": "Code, file paths, and machine identifiers shown literally." }
+    },
+    "shadows": [
+      { "name": "popover", "value": "0 12px 30px rgba(0,0,0,.35)", "purpose": "Dropdown menus and autocomplete panels." },
+      { "name": "search-results", "value": "0 10px 30px rgba(0,0,0,0.3)", "purpose": "Graph/search result list floating over content." },
+      { "name": "palette", "value": "0 20px 60px rgba(0,0,0,0.5)", "purpose": "Command palette — the deepest floating layer." },
+      { "name": "overlay", "value": "0 0 40px rgba(0,0,0,0.4)", "purpose": "Modal/dialog backdrop glow." },
+      { "name": "floating", "value": "0 10px 26px rgba(0,0,0,0.35)", "purpose": "Raised interactive surfaces." },
+      { "name": "floating-lg", "value": "0 14px 34px rgba(0,0,0,0.4)", "purpose": "Block toolbar and larger raised surfaces." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "0.15s ease", "purpose": "Default transition for background and border-color on controls." },
+      { "name": "ease-press", "value": "0.05s ease", "purpose": "Fast press feedback (translateY) on active controls." },
+      { "name": "ease-panel", "value": "0.22s ease", "purpose": "Transform easing for panels and sliding surfaces." },
+      { "name": "ease-fade", "value": "0.15s ease-out", "purpose": "Opacity fades (gutter affordances, overlays)." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "860px" },
+      { "name": "sm", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single do-the-thing action per view region (approve, save, create).",
+      "html": "<button class=\"ds-btn-primary\">Approve</button>",
+      "css": ".ds-btn-primary { font: inherit; background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 6px 12px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease; } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:active { filter: brightness(0.95); transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default control — everything that is not the one primary action.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { font: inherit; color: var(--text); border: 1px solid var(--btn-border); background: var(--btn-bg); border-radius: var(--radius-sm); padding: 6px 12px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease; } .ds-btn-secondary:hover { background: var(--bg-alt); border-color: var(--accent); } .ds-btn-secondary:active { transform: translateY(1px); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The raised content surface; flat at rest, bounded by a 1px hairline.",
+      "html": "<div class=\"ds-card\"><h2>Recently modified</h2><p>Notes the agent touched most recently.</p></div>",
+      "css": ".ds-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; color: var(--text); } .ds-card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; } .ds-card p { margin: 0; color: var(--text-dim); font-size: 13px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Field and search input; focus is a 2px accent outline, never a glow.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search the vault\" />",
+      "css": ".ds-input { font: inherit; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; } .ds-input::placeholder { color: var(--text-dim); } .ds-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Sidebar navigation row; recedes when inactive, uses the soft accent when current.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\">Dashboard</a><a class=\"ds-nav-item ds-nav-item-active\">Notes</a><a class=\"ds-nav-item\">Graph</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; } .ds-nav-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: var(--radius-sm); color: var(--text-dim); text-decoration: none; cursor: pointer; font-size: 15px; } .ds-nav-item:hover { background: var(--bg-alt); color: var(--text); } .ds-nav-item-active { background: var(--accent-soft); color: var(--accent); }"
+    },
+    {
+      "name": "Tag Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Discrete token for tags and statuses; the only pill-radius element.",
+      "html": "<span class=\"ds-chip\">#research</span>",
+      "css": ".ds-chip { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-pill); padding: 1px 8px; font-size: 12px; }"
+    },
+    {
+      "name": "Stat",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Signature at-a-glance figure: a large number over a quiet label.",
+      "html": "<div class=\"ds-stat\"><div class=\"ds-stat-value\">128</div><div class=\"ds-stat-label\">Documents</div></div>",
+      "css": ".ds-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; } .ds-stat-value { font-size: 24px; font-weight: 700; color: var(--text); } .ds-stat-label { color: var(--text-dim); font-size: 13px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Polished Instrument",
+    "overview": "Doug KX is a working instrument, not a showcase. It is a knowledge-operating surface laid over a real Obsidian vault: an agent proposes and a human approves, and the interface exists to make that loop fast, legible, and trustworthy. The visual world is dark-first — a near-black canvas with a single blue signal accent — because the tool is used for long, focused sessions where the content, not the chrome, must hold attention.\n\nThe voice is authoritative: precise, quiet, and unhedged. The interface states what is true (what changed, what is orphaned, what is pending approval) without decoration or apology. Every affordance earns its place; nothing is ornamental. Density is high but never crowded, because structure — hairlines, tonal layering, and a strict accent budget — carries the hierarchy that ornament would otherwise be asked to do.\n\nComponents feel refined and restrained: quiet controls that recede so the content is the interface. Depth is deliberately shallow — surfaces are flat at rest and separated by 1px low-contrast hairlines and tonal steps, not by heavy shadows. Shadow is reserved for genuinely floating layers (menus, the command palette, popovers) so that \"raised\" always means \"temporarily above the document.\" The result reads as a precision tool: calm, ordered, and dependable under the hand.",
+    "keyCharacteristics": [
+      "Dark-first, near-black canvas with one blue signal accent.",
+      "Authoritative, low-noise voice: state facts, skip decoration.",
+      "Refined and restrained controls that recede behind the content.",
+      "Flat by default; hairlines and tone create structure, shadows only for floating layers.",
+      "One accent used sparingly — its rarity is what makes it a signal.",
+      "Native system type; no webfonts, no waiting, no drift."
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "The accent appears on ≤10% of any given screen. Its scarcity is the point — if everything is blue, nothing is.", "section": "colors" },
+      { "name": "The Hairline Rule", "body": "Structure is drawn with 1px hairlines and tonal steps, never with heavy strokes or fills. If a region needs to separate from its neighbor, change its tone or add a hairline — do not reach for a shadow.", "section": "colors" },
+      { "name": "The Native Type Rule", "body": "No webfonts. The system UI font is the interface; adding a display face would add latency and break the tool's native immediacy.", "section": "typography" },
+      { "name": "The Weight-Not-Size Rule", "body": "Section headings stay at 15px and separate themselves by weight (600) and color, not by growing. Only the page title earns a larger size.", "section": "typography" },
+      { "name": "The Scroll-Once Rule", "body": "The page frame never scrolls; exactly one region inside it does. Navigation and identity stay put while content moves.", "section": "layout" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. A shadow appears only when an element leaves the document flow — never to decorate a card that is simply sitting in the page.", "section": "elevation" },
+      { "name": "The Pill-Is-A-Token Rule", "body": "Fully round shapes are reserved for discrete tokens — tags and statuses. Buttons, cards, and inputs never use the pill radius; their soft-cornered rectangle is what says \"control\" or \"container.\"", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep the accent to ≤10% of a screen — buttons, links, active nav, and selection only (The One Signal Rule).",
+      "Do build structure from 1px hairlines and tonal steps (canvas → panel → card) before reaching for any other separator (The Hairline Rule).",
+      "Do reserve shadows for genuinely floating layers; a card at rest is flat (The Flat-By-Default Rule).",
+      "Do use the system UI font and let weight (600) carry section hierarchy instead of size (The Native Type Rule, The Weight-Not-Size Rule).",
+      "Do match radius to role: 6px controls, 10px cards, 14px large panels, 999px chips.",
+      "Do use the semantic hues only for state (success / warning / danger) — never as decorative color."
+    ],
+    "donts": [
+      "Don't introduce a webfont, a display face, or any typeface beyond the system UI and mono stacks.",
+      "Don't use the pill radius on buttons, cards, or inputs — round means \"token,\" not \"control.\"",
+      "Don't add a shadow to an element that is not floating above the document.",
+      "Don't use the accent as a fill for large surfaces or as decoration; it marks interaction and current state only.",
+      "Don't replace hairline separation with heavy strokes, thick borders, or filled dividers.",
+      "Don't invent additional accent hues — one signal color, plus the three semantic states."
+    ]
+  }
+}

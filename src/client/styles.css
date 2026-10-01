@@ -10,6 +10,7 @@
   --ok: #37c877;
   --warn: #e0a63a;
   --err: #e2574f;
+  --star-empty: #4d5b74;
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
@@ -52,6 +53,7 @@ html[data-theme='light'] {
   --text-dim: #5c6371;
   --accent: #2a63cd;
   --accent-soft: #e0eafb;
+  --star-empty: #b9c0cc;
   --btn-bg: #f1f3f7;
   --btn-border: #c9d0dc;
   /* S6-1 blueprint agent-block palette (light) */
@@ -515,9 +517,10 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 
 /* ---------- Stars ---------- */
 .stars { display: inline-flex; align-items: center; gap: 1px; }
-.star { color: var(--border); line-height: 1; cursor: default; }
+.star { color: var(--star-empty); line-height: 1; cursor: default; }
 .star.filled { color: var(--warn); }
 .stars.editable .star { cursor: pointer; }
+.stars.editable .star:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: var(--radius-xs); }
 .star-label { margin-left: 6px; color: var(--text-dim); font-size: 12px; }
 .rating-inline { color: var(--warn); font-size: 13px; }
 
