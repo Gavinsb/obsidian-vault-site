@@ -94,24 +94,39 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Palette entry points that aren't the keyboard shortcut (sync-bar button,
+  // touch users) dispatch this event.
+  useEffect(() => {
+    const open = () => setPaletteOpen(true);
+    window.addEventListener("kv:open-palette", open);
+    return () => window.removeEventListener("kv:open-palette", open);
+  }, []);
+
   const navItems: NavItem[] = useMemo(
     () => [
-      { label: "Home", icon: "home", to: "/" },
-      { label: "Search", icon: "search", to: "/search" },
-      { label: "Recent", icon: "clock", to: "/recent" },
-      { label: "Changed", icon: "history", to: "/changed" },
-      { label: "Favorites", icon: "star", to: "/favorites" },
-      { label: "Highly Rated", icon: "thumbs-up", to: "/rated" },
-      { label: "Tags", icon: "tag", to: "/tags" },
-      { label: "Graph", icon: "graph", to: "/graph" },
-      { label: "Knowledge Map", icon: "map", to: "/knowledge-map" },
-      { label: "Orphans", icon: "link-off", to: "/orphans" },
-      { label: "Folders", icon: "folder", to: "/folders" },
-      { label: "Activity", icon: "activity", to: "/timeline" },
-      { label: "Health", icon: "shield", to: "/health" },
-      { label: "Settings", icon: "settings", to: "/settings" },
+      { label: "Home", icon: "home", to: "/", group: "Browse" },
+      { label: "Search", icon: "search", to: "/search", group: "Browse" },
+      { label: "Recent", icon: "clock", to: "/recent", group: "Browse" },
+      { label: "Folders", icon: "folder", to: "/folders", group: "Browse" },
+      { label: "Favorites", icon: "star", to: "/favorites", group: "Browse" },
+      { label: "Highly Rated", icon: "thumbs-up", to: "/rated", group: "Browse" },
+      { label: "Changed", icon: "history", to: "/changed", group: "Review" },
+      { label: "Health", icon: "shield", to: "/health", group: "Review" },
+      { label: "Orphans", icon: "link-off", to: "/orphans", group: "Review" },
+      { label: "Activity", icon: "activity", to: "/timeline", group: "Review" },
+      { label: "Graph", icon: "graph", to: "/graph", group: "Explore" },
+      { label: "Knowledge Map", icon: "map", to: "/knowledge-map", group: "Explore" },
+      { label: "Tags", icon: "tag", to: "/tags", group: "Explore" },
+      { label: "Settings", icon: "settings", to: "/settings", group: "System" },
       ...(user?.role === "admin"
-        ? [{ label: "Users", icon: "shield" as const, to: "/admin/users" }]
+        ? [
+            {
+              label: "Users",
+              icon: "shield" as const,
+              to: "/admin/users",
+              group: "System",
+            },
+          ]
         : []),
     ],
     [user?.role],

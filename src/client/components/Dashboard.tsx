@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   api,
   type VaultOverview,
@@ -25,7 +25,18 @@ export function Dashboard({ siteName }: { siteName: string }) {
   const [notePath, setNotePath] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Show a one-shot confirmation handed over by another route (e.g. a delete).
+  useEffect(() => {
+    const flash = (location.state as { flash?: string } | null)?.flash;
+    if (flash) {
+      setNotice(flash);
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
 
   useEffect(() => {
     (async () => {
@@ -132,17 +143,31 @@ export function Dashboard({ siteName }: { siteName: string }) {
           </button>
         </div>
       )}
-      {createError && <div className="flash flash-err">{createError}</div>}
+      {notice && (
+        <div className="flash flash-ok" role="status" aria-live="polite">
+          {notice}
+        </div>
+      )}
+      {createError && (
+        <div className="flash flash-err" role="alert">
+          {createError}
+        </div>
+      )}
 
       <div className="stat-grid">
         <Stat label="Total notes" value={stats?.noteCount ?? "—"} />
         <Stat label="Links" value={stats?.linkCount ?? "—"} />
         <Stat label="Backlinks" value={stats?.backlinkCount ?? "—"} />
         <Stat label="Tags" value={stats?.tagCount ?? "—"} />
-        <Stat label="Orphans" value={stats?.orphanCount ?? "—"} />
-        <Stat label="Broken links" value={stats?.brokenLinkCount ?? "—"} />
+        <Stat label="Orphans" value={stats?.orphanCount ?? "—"} to="/orphans" />
+        <Stat
+          label="Broken links"
+          value={stats?.brokenLinkCount ?? "—"}
+          to="/health"
+          tone={stats?.brokenLinkCount ? "warn" : undefined}
+        />
         <Stat label="Avg rating" value={stats?.avgRating ?? "—"} />
-        <Stat label="Unrated" value={stats?.unratedCount ?? "—"} />
+        <Stat label="Unrated" value={stats?.unratedCount ?? "—"} to="/rated" />
       </div>
 
       <div className="dash-cols">
@@ -217,12 +242,32 @@ export function Dashboard({ siteName }: { siteName: string }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="stat">
+function Stat({
+  label,
+  value,
+  to,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  to?: string;
+  tone?: "warn";
+}) {
+  const body = (
+    <>
       <div className="stat-value">{value}</div>
       <div className="stat-label">{label}</div>
-    </div>
+    </>
+  );
+  const cls = `stat${tone ? ` stat-${tone}` : ""}${to ? " stat-link" : ""}`;
+  // Actionable counts drill through to the view that resolves them; inert
+  // metrics stay plain tiles so the two are visually distinct.
+  return to ? (
+    <Link className={cls} to={to}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }
 

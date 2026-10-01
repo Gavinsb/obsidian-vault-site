@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import {
   Home,
   Search,
@@ -23,6 +23,8 @@ export interface NavItem {
   label: string;
   icon: string;
   to: string;
+  /** Optional section label; consecutive items sharing a group render under one heading. */
+  group?: string;
 }
 
 const ICONS: Record<string, ReactNode> = {
@@ -69,18 +71,24 @@ export function Sidebar({
         </button>
       </div>
       <nav className="sidebar-nav">
-        {items.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-            onClick={onClose}
-          >
-            <span className="nav-icon">{ICONS[item.icon] ?? "•"}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {items.map((item, i) => {
+          const prev = items[i - 1];
+          const showGroup = !!item.group && item.group !== prev?.group;
+          return (
+            <Fragment key={item.to}>
+              {showGroup && <div className="nav-group">{item.group}</div>}
+              <NavLink
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={onClose}
+              >
+                <span className="nav-icon">{ICONS[item.icon] ?? "•"}</span>
+                <span>{item.label}</span>
+              </NavLink>
+            </Fragment>
+          );
+        })}
       </nav>
       {canCreate && (
         <div className="sidebar-footer">

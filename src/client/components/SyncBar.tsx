@@ -33,6 +33,15 @@ export function SyncBar({ overview }: { overview: VaultOverview | null }) {
           aria-label="Search vault"
         />
       </form>
+      <button
+        type="button"
+        className="sync-palette-btn"
+        onClick={() => window.dispatchEvent(new CustomEvent("kv:open-palette"))}
+        aria-label="Open command palette"
+        title="Open command palette (Ctrl/⌘ K)"
+      >
+        Commands <span className="kbd">⌘K</span>
+      </button>
       {user && (
         <button
           className="header-user"

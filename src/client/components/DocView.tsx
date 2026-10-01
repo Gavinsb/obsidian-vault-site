@@ -35,6 +35,21 @@ import { AgentBlocksView } from "./AgentBlocksView";
  */
 type Mode = "read" | "edit" | "raw";
 
+/** Map an API/render error to plain, actionable copy — never a raw exception string. */
+function friendlyError(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.status === 404)
+      return "That note could not be found. It may have been moved, renamed, or deleted.";
+    if (e.status === 409 || e.status === 412)
+      return "This note changed on disk since you opened it. Reload the external version before saving.";
+    if (e.status === 401 || e.status === 403)
+      return "You are not signed in, or you do not have permission for this action.";
+    return e.message || "The server rejected that request.";
+  }
+  if (e instanceof Error && e.message) return e.message;
+  return "Something went wrong. Please try again.";
+}
+
 export function DocView() {
   const { path: pathParam } = useParams();
   const lookup = pathParam ? decodeURIComponent(pathParam) : "";
@@ -133,7 +148,7 @@ export function DocView() {
       }
     } catch (e) {
       if (id !== seq.current || guard !== pollGuard.current) return;
-      setError(String(e));
+      setError(friendlyError(e));
     } finally {
       if (id === seq.current) setLoading(false);
     }
@@ -228,8 +243,8 @@ export function DocView() {
   if (error && !doc)
     return (
       <div className="view">
-        <div className="card error-card not-found">
-          <h2>Document not found</h2>
+        <div className="card error-card not-found" role="alert">
+          <h2>Can't open this note</h2>
           <p>{error}</p>
           <button className="primary" onClick={() => navigate("/")}>
             ← Back to home
@@ -248,7 +263,7 @@ export function DocView() {
       if (mode === "read") await loadSource();
       setMode(next);
     } catch (e) {
-      setFlash({ kind: "err", msg: String(e) });
+      setFlash({ kind: "err", msg: friendlyError(e) });
     }
   };
   const leave = () => {
@@ -306,7 +321,7 @@ export function DocView() {
           kind: "warn",
           msg: "Could not verify this document's current version. Reload the note and try again — your draft is preserved.",
         });
-      else setFlash({ kind: "err", msg: String(e) });
+      else setFlash({ kind: "err", msg: friendlyError(e) });
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -324,7 +339,7 @@ export function DocView() {
           kind: "warn",
           msg: "Could not verify this document's current version. Reload the note and try again.",
         });
-      else setFlash({ kind: "err", msg: String(e) });
+      else setFlash({ kind: "err", msg: friendlyError(e) });
     }
   };
   const cancel = () => {
@@ -506,6 +521,9 @@ export function DocView() {
       {confirmDelete && (
         <div className="confirm-panel">
           Delete this note permanently?
+          <span className="saved-hint">
+            A timestamped backup is written to <code>data/backups/</code> first.
+          </span>
           {dirty && (
             <span className="saved-hint warn">
               Your unsaved changes will be discarded.
@@ -518,10 +536,12 @@ export function DocView() {
                 const src = await api.getSource(canonicalPath);
                 await api.deleteDoc(canonicalPath, src.etag!);
                 setConfirmDelete(false);
-                navigate("/");
+                navigate("/", {
+                  state: { flash: `Deleted “${meta.title}”. A backup was written first.` },
+                });
               } catch (e) {
                 setConfirmDelete(false);
-                setFlash({ kind: "err", msg: String(e) });
+                setFlash({ kind: "err", msg: friendlyError(e) });
               }
             }}
           >
@@ -530,7 +550,15 @@ export function DocView() {
           <button onClick={() => setConfirmDelete(false)}>Cancel</button>
         </div>
       )}
-      {flash && <div className={`flash flash-${flash.kind}`}>{flash.msg}</div>}
+      {flash && (
+        <div
+          className={`flash flash-${flash.kind}`}
+          role={flash.kind === "err" ? "alert" : "status"}
+          aria-live={flash.kind === "err" ? "assertive" : "polite"}
+        >
+          {flash.msg}
+        </div>
+      )}
       {conflict && (
         <div className="conflict-banner">
           <strong>Conflict detected.</strong>
@@ -538,12 +566,20 @@ export function DocView() {
             Load external version
           </button>
           <button
-            onClick={() =>
-              setFlash({
-                kind: "info",
-                msg: "Your draft remains in the editor; load the external version in another tab to review differences.",
-              })
-            }
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(draft);
+                setFlash({
+                  kind: "info",
+                  msg: "Your draft was copied to the clipboard. Load the external version, compare, then paste to restore if needed.",
+                });
+              } catch {
+                setFlash({
+                  kind: "info",
+                  msg: "Load the external version in another tab to review differences; your draft stays in the editor until you reload.",
+                });
+              }
+            }}
           >
             Review differences
           </button>

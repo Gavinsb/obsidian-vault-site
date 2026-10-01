@@ -37,14 +37,19 @@ export function HealthView() {
       <h1>Knowledge health</h1>
       <p className="muted">Issues and opportunities for review. Nothing here modifies the vault.</p>
 
-      <div className="chip-row">
-        <button className={`chip${filter === 'all' ? ' on' : ''}`} onClick={() => setFilter('all')}>
+      <div className="chip-row" role="group" aria-label="Filter issues by kind">
+        <button
+          className={`chip${filter === 'all' ? ' on' : ''}`}
+          aria-pressed={filter === 'all'}
+          onClick={() => setFilter('all')}
+        >
           All ({issues.length})
         </button>
         {kinds.map((k) => (
           <button
             key={k}
             className={`chip${filter === k ? ' on' : ''}`}
+            aria-pressed={filter === k}
             onClick={() => setFilter(k)}
           >
             {KIND_LABEL[k] ?? k} ({grouped[k].length})

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { api, type VaultDocSummary } from "../api";
 import {
   sortTags,
-  stableTagHue,
   type TagInfo,
   type TagSort,
 } from "../../shared/editor-utils";
@@ -40,19 +39,15 @@ export function TagsView() {
                 return (
                   <button
                     key={t.tag}
-                    className={selected === t.tag ? "selected" : ""}
+                    className={`tag-cloud-item${selected === t.tag ? " selected" : ""}`}
                     title={`#${t.tag} — ${t.count} note${t.count === 1 ? "" : "s"}`}
                     onClick={() => void select(t.tag)}
                     style={{
+                      // Frequency is encoded by size only — no per-tag hue,
+                      // no rotation. Keeps the tag cloud inside the one-signal
+                      // accent system (DESIGN.md: The One Signal Rule).
                       fontSize: `clamp(0.9rem, ${1 + ratio * 1.8}rem, 2.8rem)`,
-                      color: `hsl(${stableTagHue(t.tag)} 70% 62%)`,
-                      fontWeight: ratio > 0.55 ? 750 : 600,
-                      transform:
-                        i % 7 === 4
-                          ? "rotate(-4deg)"
-                          : i % 9 === 3
-                            ? "rotate(3deg)"
-                            : "none",
+                      fontWeight: ratio > 0.55 ? 700 : 600,
                     }}
                   >
                     #{t.tag}
