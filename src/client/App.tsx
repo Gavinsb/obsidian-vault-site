@@ -6,6 +6,7 @@ import {
   useLocation,
   Navigate,
 } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { api, type AppConfig, type VaultOverview } from "./api";
 import { Sidebar, type NavItem } from "./components/Sidebar";
 import { Dashboard } from "./components/Dashboard";
@@ -25,8 +26,7 @@ import { KnowledgeMapView } from "./components/KnowledgeMapView";
 import { UserAdminView } from "./components/AuthViews";
 import { useAuth } from "./auth";
 
-export function App() {
-  const [config, setConfig] = useState<AppConfig | null>(null);
+export function App() {  const [config, setConfig] = useState<AppConfig | null>(null);
   const [overview, setOverview] = useState<VaultOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<"dark" | "light" | "system">("system");
@@ -136,7 +136,7 @@ export function App() {
     return (
       <div className="boot-error">
         <h2>Cannot start</h2>
-        <p>{error}</p>
+        <p>{bootErrorMessage(error)}</p>
         <p>
           Check <code>VAULT_PATH</code> / <code>config/default.json</code> and
           restart the server.
@@ -174,31 +174,33 @@ export function App() {
           </div>
           <SyncBar overview={overview} />
           <div className="app-content">
-            <Routes>
-              <Route path="/" element={<Dashboard siteName={siteName} />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/recent" element={<RecentView />} />
-              <Route path="/changed" element={<ChangedView />} />
-              <Route path="/favorites" element={<FavoritesView />} />
-              <Route path="/rated" element={<HighlyRated />} />
-              <Route path="/tags" element={<TagsView />} />
-              <Route path="/folders" element={<FolderView />} />
-              <Route path="/orphans" element={<OrphansView />} />
-              <Route path="/graph" element={<GraphView />} />
-              <Route path="/knowledge-map" element={<KnowledgeMapView />} />
-              <Route path="/timeline" element={<TimelineView />} />
-              <Route path="/health" element={<HealthView />} />
-              <Route
-                path="/settings"
-                element={<SettingsView config={config} />}
-              />
-              <Route path="/admin/users" element={<UserAdminView />} />
-              <Route path="/note" element={<Navigate to="/" replace />} />
-              <Route
-                path="/note/:path*"
-                element={<DocView key={location.pathname} />}
-              />
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<Dashboard siteName={siteName} />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/recent" element={<RecentView />} />
+                <Route path="/changed" element={<ChangedView />} />
+                <Route path="/favorites" element={<FavoritesView />} />
+                <Route path="/rated" element={<HighlyRated />} />
+                <Route path="/tags" element={<TagsView />} />
+                <Route path="/folders" element={<FolderView />} />
+                <Route path="/orphans" element={<OrphansView />} />
+                <Route path="/graph" element={<GraphView />} />
+                <Route path="/knowledge-map" element={<KnowledgeMapView />} />
+                <Route path="/timeline" element={<TimelineView />} />
+                <Route path="/health" element={<HealthView />} />
+                <Route
+                  path="/settings"
+                  element={<SettingsView config={config} />}
+                />
+                <Route path="/admin/users" element={<UserAdminView />} />
+                <Route path="/note" element={<Navigate to="/" replace />} />
+                <Route
+                  path="/note/:path*"
+                  element={<DocView key={location.pathname} />}
+                />
+              </Routes>
+            </ErrorBoundary>
           </div>
         </main>
         {paletteOpen && (
@@ -218,3 +220,12 @@ import {
   OrphansView,
   SettingsView,
 } from "./components/Extras";
+
+/** Turn a raw boot error into something a human can act on. */
+function bootErrorMessage(raw: string): string {
+  if (/Failed to fetch|NetworkError|Load failed/i.test(raw))
+    return "The app could not reach its server. Is it still running?";
+  if (/404/.test(raw))
+    return "The app's configuration endpoint was not found.";
+  return raw || "An unexpected error occurred while starting the app.";
+}

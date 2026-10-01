@@ -81,6 +81,7 @@ export function DocView() {
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [pendingMode, setPendingMode] = useState<Mode | undefined>(undefined);
   const [confirmExternal, setConfirmExternal] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -357,10 +358,25 @@ export function DocView() {
     }
     leave();
   };
+  // Switching mode (or leaving the note) discards an unsaved draft, so it gets
+  // the same guard as Cancel — no silent draft loss.
+  const requestLeave = (next?: Mode) => {
+    if (next === mode) return;
+    if (dirty) {
+      setPendingMode(next);
+      setConfirmCancel(true);
+      return;
+    }
+    if (next && next !== "read") void enter(next);
+    else leave();
+  };
   const discard = () => {
     setDraft(baseline);
     setConfirmCancel(false);
-    leave();
+    const next = pendingMode;
+    setPendingMode(undefined);
+    if (next && next !== "read") void enter(next);
+    else leave();
   };
   const onInput = (e: string) => {
     setDraft(e);
@@ -392,13 +408,13 @@ export function DocView() {
               </button>
               <button
                 className={mode === "edit" ? "active" : ""}
-                onClick={() => void enter("edit")}
+                onClick={() => requestLeave("edit")}
               >
                 Edit
               </button>
               <button
                 className={mode === "raw" ? "active" : ""}
-                onClick={() => void enter("raw")}
+                onClick={() => requestLeave("raw")}
               >
                 Raw
               </button>

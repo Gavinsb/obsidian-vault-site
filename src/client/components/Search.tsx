@@ -20,7 +20,9 @@ export function Search() {
       run(qParam, { tag: tag || undefined });
     } else if (tag) {
       setTagFilter(tag);
-      run(tag, { tag });
+      // A tag-only deep link should filter by tag, not search for the tag
+      // string as a query.
+      run('', { tag });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

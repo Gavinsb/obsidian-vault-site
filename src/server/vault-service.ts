@@ -64,6 +64,21 @@ export class VaultService {
     }
   }
 
+  /**
+   * Journal state. The change log is derived from the filesystem and only
+   * fills as events arrive (app writes, or external edits seen by the
+   * watcher). After a cold start it is legitimately empty even though the
+   * vault has files, so the UI must be able to distinguish "nothing changed"
+   * from "nothing has been observed yet".
+   */
+  historyState(): { journaled: boolean; since: string } {
+    const all = this.history.all();
+    return {
+      journaled: all.length > 0,
+      since: new Date().toISOString(),
+    };
+  }
+
   /** Full rebuild of the index from source (also reconciliation). */
   async reconcile(): Promise<number> {
     this.setSyncState({

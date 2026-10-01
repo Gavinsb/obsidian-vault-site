@@ -11,12 +11,20 @@ const BUCKETS: { key: keyof ChangesBuckets; label: string }[] = [
 
 export function ChangedView() {
   const [buckets, setBuckets] = useState<ChangesBuckets | null>(null);
+  const [journaled, setJournaled] = useState(true);
 
   useEffect(() => {
-    api.changes().then((c) => setBuckets(c.buckets)).catch(() => {});
+    api
+      .changes()
+      .then((c) => {
+        setBuckets(c.buckets);
+        setJournaled(c.journaled);
+      })
+      .catch(() => {});
   }, []);
 
   if (!buckets) return <div className="view loading">Loading changes…</div>;
+  const empty = !BUCKETS.some(({ key }) => buckets[key].length);
 
   return (
     <div className="view">
@@ -47,8 +55,12 @@ export function ChangedView() {
           </section>
         );
       })}
-      {!BUCKETS.some(({ key }) => buckets[key].length) && (
-        <p className="muted">No changes recorded yet.</p>
+      {empty && (
+        <p className="muted">
+          {journaled
+            ? 'No changes recorded yet.'
+            : 'No changes observed since the app started. Edits made here — or picked up from Obsidian, Git, or VS Code while the app is running — appear here.'}
+        </p>
       )}
     </div>
   );

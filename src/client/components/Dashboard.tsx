@@ -15,6 +15,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
   const [activity, setActivity] = useState<{
     pagesChangedToday: number;
     pagesChangedThisWeek: number;
+    journaled: boolean;
     lastChanges: ChangeEntry[];
   } | null>(null);
   const [timeline, setTimeline] = useState<
@@ -167,7 +168,7 @@ export function Dashboard({ siteName }: { siteName: string }) {
           tone={stats?.brokenLinkCount ? "warn" : undefined}
         />
         <Stat label="Avg rating" value={stats?.avgRating ?? "—"} />
-        <Stat label="Unrated" value={stats?.unratedCount ?? "—"} to="/rated" />
+        <Stat label="Unrated" value={stats?.unratedCount ?? "—"} to="/search?rating=unrated" />
       </div>
 
       <div className="dash-cols">
@@ -222,6 +223,13 @@ export function Dashboard({ siteName }: { siteName: string }) {
               </li>
             ))}
           </ul>
+          {(activity?.lastChanges ?? []).length === 0 && (
+            <p className="muted">
+              {activity?.journaled
+                ? "No changes recorded yet."
+                : "No changes observed since the app started. The counts above reflect file modification times across the whole vault."}
+            </p>
+          )}
         </section>
 
         <section className="card">
@@ -259,12 +267,16 @@ function Stat({
       <div className="stat-label">{label}</div>
     </>
   );
-  const cls = `stat${tone ? ` stat-${tone}` : ""}${to ? " stat-link" : ""}`;
+  let extra = "";
+  if (to) extra += " stat-link";
+  if (tone) extra += ` stat-${tone}`;
+  const cls = `stat${extra}`;
   // Actionable counts drill through to the view that resolves them; inert
   // metrics stay plain tiles so the two are visually distinct.
   return to ? (
     <Link className={cls} to={to}>
       {body}
+      <span className="stat-go" aria-hidden="true">→</span>
     </Link>
   ) : (
     <div className={cls}>{body}</div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Folder } from "lucide-react";
 import { api, type VaultDocSummary, type AppConfig } from "../api";
 import { RatingStars } from "./RatingStars";
 import { useTheme } from "../theme";
@@ -73,7 +74,7 @@ export function FolderView() {
             className={`folder-item${current === f.folder ? " on" : ""}`}
             onClick={() => setCurrent(f.folder)}
           >
-            📁 {f.folder || "(root)"}{" "}
+            <Folder size={14} strokeWidth={1.75} /> {f.folder || "(root)"}{" "}
             <span className="tag-count">{f.count}</span>
           </button>
         ))}

@@ -18,10 +18,15 @@ const KIND_LABEL: Record<string, string> = {
 
 export function HealthView() {
   const [issues, setIssues] = useState<HealthIssue[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    api.health().then((h) => setIssues(h.issues)).catch(() => {});
+    api
+      .health()
+      .then((h) => setIssues(h.issues))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const grouped = issues.reduce<Record<string, HealthIssue[]>>((acc, i) => {
@@ -57,22 +62,85 @@ export function HealthView() {
         ))}
       </div>
 
-      {shown.length === 0 ? (
+      {loading ? (
+        <p className="muted">Loading health checks…</p>
+      ) : shown.length === 0 ? (
         <p className="muted">Nothing here. Looking healthy.</p>
       ) : (
-        <ul className="note-list">
-          {shown.map((i, idx) => (
-            <li key={idx} className={`health-item sev-${i.severity}`}>
-              {i.relPath ? (
-                <Link to={`/note/${encodeURIComponent(i.relPath)}`}>{i.relPath}</Link>
-              ) : (
-                <strong>{KIND_LABEL[i.kind] ?? i.kind}</strong>
-              )}
-              <span className="muted">{i.description}</span>
-            </li>
-          ))}
-        </ul>
+        <IssueGroups issues={shown} />
       )}
     </div>
+  );
+}
+
+/**
+ * Group issues by the file they belong to, so a file with 54 broken links is
+ * one row ("54 unresolved links") plus a drill-down — not 54 identical rows.
+ * Selecting the row reveals the individual issues.
+ */
+function IssueGroups({ issues }: { issues: HealthIssue[] }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const byFile = new Map<string, HealthIssue[]>();
+  for (const i of issues) {
+    const key = i.relPath || `\u0000${KIND_LABEL[i.kind] ?? i.kind}`;
+    (byFile.get(key) ?? byFile.set(key, []).get(key)!).push(i);
+  }
+  const groups = [...byFile.entries()].sort(
+    (a, b) => b[1].length - a[1].length,
+  );
+
+  return (
+    <ul className="note-list health-groups">
+      {groups.map(([key, list]) => {
+        const isVirtual = key.startsWith('\u0000');
+        const first = list[0];
+        const kindsInGroup = [...new Set(list.map((i) => i.kind))];
+        const expanded = !!open[key];
+        const summary =
+          kindsInGroup.length === 1
+            ? `${list.length} × ${KIND_LABEL[kindsInGroup[0]] ?? kindsInGroup[0]}`
+            : `${list.length} issues (${kindsInGroup
+                .map((k) => KIND_LABEL[k] ?? k)
+                .join(', ')})`;
+        return (
+          <li key={key} className={`health-item sev-${first.severity}`}>
+            <div className="health-group-head">
+              {isVirtual ? (
+                <strong>{KIND_LABEL[first.kind] ?? first.kind}</strong>
+              ) : (
+                <Link to={`/note/${encodeURIComponent(first.relPath ?? "")}`}>
+                  {first.relPath}
+                </Link>
+              )}
+              {list.length > 1 && (
+                <button
+                  className="link-btn"
+                  aria-expanded={expanded}
+                  onClick={() =>
+                    setOpen((o) => ({ ...o, [key]: !o[key] }))
+                  }
+                >
+                  {summary} {expanded ? '▾' : '▸'}
+                </button>
+              )}
+              {list.length === 1 && (
+                <span className="muted">{first.description}</span>
+              )}
+            </div>
+            {expanded && list.length > 1 && (
+              <ul className="note-list compact health-subitems">
+                {list.map((i, idx) => (
+                  <li key={idx}>
+                    <span className="muted">
+                      {KIND_LABEL[i.kind] ?? i.kind} — {i.description}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

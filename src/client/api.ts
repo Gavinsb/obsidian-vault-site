@@ -247,11 +247,15 @@ export const api = {
   folders: () => req<{ folder: string; count: number }[]>("/api/folders"),
   health: () => req<{ issues: HealthIssue[] }>("/api/health"),
   recent: (limit = 50) => req<VaultDocSummary[]>(`/api/recent?limit=${limit}`),
-  changes: () => req<{ buckets: ChangesBuckets }>("/api/changes"),
+  changes: () =>
+    req<{ buckets: ChangesBuckets; journaled: boolean; total: number }>(
+      "/api/changes",
+    ),
   activity: () =>
     req<{
       pagesChangedToday: number;
       pagesChangedThisWeek: number;
+      journaled: boolean;
       lastChanges: ChangeEntry[];
     }>("/api/activity"),
   timeline: () =>

@@ -32,7 +32,10 @@ describe("S8 mode matrix (Read / Edit / Raw)", () => {
     for (const label of ["Read", "Edit", "Raw"]) {
       expect(docView).toContain(`>\n                ${label}\n              </button>`);
     }
-    expect(docView).toContain('void enter("raw")');
+    // Mode switches route through requestLeave so an unsaved draft is not
+    // silently discarded (S8-12 guard).
+    expect(docView).toContain('requestLeave("raw")');
+    expect(docView).toContain('requestLeave("edit")');
   });
 
   it("uses RawEditor for Raw and never shows Properties or the console there", () => {

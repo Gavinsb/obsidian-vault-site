@@ -442,12 +442,19 @@ export function createApi(
     docs.sort((a, b) => b.mtimeMs - a.mtimeMs);
     res.json(docs.slice(0, num(req.query.limit) ?? 50));
   });
-  r.get("/changes", (_req, res) =>
-    res.json({ buckets: service.history.buckets() }),
-  );
+  r.get("/changes", (_req, res) => {
+    const buckets = service.history.buckets();
+    const state = service.historyState();
+    const total = Object.values(buckets).reduce(
+      (n, list) => n + list.length,
+      0,
+    );
+    res.json({ buckets, journaled: state.journaled, total });
+  });
   r.get("/activity", async (_req, res) => {
     const docs = await service.listDocuments(),
       now = Date.now();
+    const journaled = service.historyState().journaled;
     res.json({
       pagesChangedToday: docs.filter(
         (d) => d.mtimeMs >= new Date().setHours(0, 0, 0, 0),
@@ -456,6 +463,10 @@ export function createApi(
         .length,
       newPages: 0,
       recentlyAddedLinks: service.index.notes.size,
+      // The journal only holds events observed since startup; when it is
+      // empty the counters above still reflect real file mtimes, so say so
+      // instead of implying nothing ever changed.
+      journaled,
       lastChanges: service.history.all().slice(0, 20),
     });
   });
