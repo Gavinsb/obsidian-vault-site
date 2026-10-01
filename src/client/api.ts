@@ -145,9 +145,14 @@ export const api = {
       body: JSON.stringify({}),
     }),
   docs: () => req<VaultDocSummary[]>("/api/docs"),
-  getDoc: (p: string) => req<Document>(`/api/docs/${encodeURIComponent(p)}`),
+  // no-store: the read-back after a rating/favourite write must not be served
+  // from the 30s public cache, or the toggle appears to snap back.
+  getDoc: (p: string) =>
+    req<Document>(`/api/docs/${encodeURIComponent(p)}`, { cache: "no-store" }),
   getDocAgents: (p: string) =>
-    req<Document>(`/api/docs/${encodeURIComponent(p)}?agents=1`),
+    req<Document>(`/api/docs/${encodeURIComponent(p)}?agents=1`, {
+      cache: "no-store",
+    }),
   agentIds: (path?: string) =>
     req<{ ids: string[]; externalIds?: string[] }>(
       "/api/agent/ids" + (path ? `?path=${encodeURIComponent(path)}` : ""),
