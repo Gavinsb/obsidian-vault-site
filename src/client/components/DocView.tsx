@@ -42,8 +42,16 @@ function friendlyError(e: unknown): string {
       return "That note could not be found. It may have been moved, renamed, or deleted.";
     if (e.status === 409 || e.status === 412)
       return "This note changed on disk since you opened it. Reload the external version before saving.";
-    if (e.status === 401 || e.status === 403)
-      return "You are not signed in, or you do not have permission for this action.";
+    if (e.status === 401)
+      return "Your session has expired. Sign in again to continue.";
+    if (e.status === 403) {
+      // The CSRF origin guard rejects writes when the page's Origin no longer
+      // matches the configured public origin (e.g. the tunnel URL changed).
+      // That is not an authentication failure, so say so plainly.
+      if (e.body?.error === "origin_rejected")
+        return "This page's address isn't authorized for changes — the site was likely opened from an old link. Reload the site from its current URL and try again.";
+      return "You don't have permission for this action.";
+    }
     return e.message || "The server rejected that request.";
   }
   if (e instanceof Error && e.message) return e.message;
