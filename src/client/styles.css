@@ -199,10 +199,7 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 
 /* ---------- Tags / breadcrumbs ---------- */
 .tag-chip { background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-pill); padding: 1px 8px; font-size: 12px; }
-.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
-.tag-cloud-item { border: 1px solid var(--border); background: var(--bg-card); color: var(--text); border-radius: var(--radius-sm); padding: 6px 10px; cursor: pointer; }
-.tag-cloud-item.selected { border-color: var(--accent); }
-.tag-cloud-item .tag-count { opacity: 0.75; font-size: 0.72em; margin-left: 2px; }
+/* Tag chips are styled by .tag-visual-cloud button (see Tags section). */
 .breadcrumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); }
 .breadcrumbs .sep { opacity: 0.5; }
 
@@ -463,9 +460,9 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .graph-legend { position: absolute; bottom: 10px; left: 10px; display: flex; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 12px; color: var(--text-dim); flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 5px; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.legend-dot.rated { background: #37c877; }
-.legend-dot.unrated { background: #4f8cff; }
-.legend-dot.bigger { width: 16px; height: 16px; background: #4f8cff; }
+.legend-dot.rated { background: var(--ok); }
+.legend-dot.unrated { background: var(--accent); }
+.legend-dot.bigger { width: 16px; height: 16px; background: var(--accent); }
 .graph-hover {
   position: absolute; top: 10px; right: 10px;
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -493,7 +490,14 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .knowledge-definitions > div { display: grid; grid-template-columns: 100px 1fr; gap: 10px; margin: 5px 0; }
 .knowledge-definitions dt { font-weight: 600; }
 .knowledge-definitions dd { margin: 0; color: var(--text-dim); }
-.knowledge-filters { display: grid; grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(130px, auto)); gap: 8px; margin: 12px 0 6px; }
+.knowledge-filterbar { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 6px; flex-wrap: wrap; }
+.knowledge-filterbar > input { flex: 1; min-width: 200px; }
+.knowledge-filter-more { position: relative; }
+.knowledge-filter-more > summary { list-style: none; cursor: pointer; border: 1px solid var(--border); background: var(--bg-card); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 13px; color: var(--text); user-select: none; }
+.knowledge-filter-more > summary::-webkit-details-marker { display: none; }
+.filter-count { display: inline-block; margin-left: 6px; background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-pill); padding: 0 6px; font-size: 11px; }
+.health-summary { margin: 10px 0; }
+.knowledge-filters { display: grid; grid-template-columns: repeat(3, minmax(130px, auto)); gap: 8px; margin: 8px 0 0; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-alt); }
 .knowledge-filters input, .knowledge-filters select {
   min-width: 0; background: var(--bg-card); border: 1px solid var(--border); color: var(--text);
   border-radius: var(--radius-sm); padding: 8px 10px;
@@ -616,6 +620,7 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
 .skeleton-line.w40 { width: 40%; }
 .skeleton-line.w80 { width: 80%; }
 .skeleton-title { height: 26px; width: 55%; margin: 0 0 16px; }
+.skeleton-card { height: 64px; margin: 10px 0; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* ---------- Mobile top bar + sidebar ---------- */
@@ -630,6 +635,15 @@ button.primary:active:not(:disabled) { filter: brightness(0.95); }
   }
   .menu-btn { border: 1px solid var(--border); background: var(--bg-card); color: var(--text); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 16px; cursor: pointer; }
   .mobile-title { font-weight: 600; }
+  /* Condense the sync bar on narrow screens: hide the ⌘K hint (meaningless
+     on touch) and the status label, and shrink the search field. */
+  .sync-bar { flex-wrap: nowrap; gap: 6px; padding: 6px 10px; }
+  .sync-label { display: none; }
+  .sync-palette-btn .kbd { display: none; }
+  .header-search input { width: 100%; min-width: 0; }
+  .header-search { flex: 1; margin-left: 0; }
+  .header-user { padding: 4px 6px; }
+  .header-user-role { display: none; }
 
   .app-shell { display: block; height: 100vh; height: 100dvh; }
   .sidebar {

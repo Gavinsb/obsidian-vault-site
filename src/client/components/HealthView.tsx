@@ -68,7 +68,14 @@ export function HealthView() {
       ) : shown.length === 0 ? (
         <p className="muted">Nothing here. Looking healthy.</p>
       ) : (
-        <IssueGroups issues={shown} />
+        <>
+          <p className="muted health-summary">
+            {new Set(shown.map((i) => i.relPath)).size} files ·{' '}
+            {shown.length} issues. Broken links are the only blocking category;
+            ratings and orphans are advisory.
+          </p>
+          <IssueGroups issues={shown} />
+        </>
       )}
     </div>
   );
@@ -86,8 +93,13 @@ function IssueGroups({ issues }: { issues: HealthIssue[] }) {
     const key = i.relPath || `\u0000${KIND_LABEL[i.kind] ?? i.kind}`;
     (byFile.get(key) ?? byFile.set(key, []).get(key)!).push(i);
   }
+  const sevRank = (s: string) =>
+    s === 'critical' ? 0 : s === 'warn' ? 1 : 2;
+  const groupSev = (list: HealthIssue[]) =>
+    Math.min(...list.map((i) => sevRank(i.severity)));
+  // Most severe first, then by number of issues.
   const groups = [...byFile.entries()].sort(
-    (a, b) => b[1].length - a[1].length,
+    (a, b) => groupSev(a[1]) - groupSev(b[1]) || b[1].length - a[1].length,
   );
 
   return (

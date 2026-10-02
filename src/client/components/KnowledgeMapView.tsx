@@ -62,7 +62,18 @@ export function KnowledgeMapView() {
       </div>
     );
   }
-  if (!data) return <div className="view loading">Building Knowledge Map…</div>;
+  if (!data)
+    return (
+      <div className="view">
+        <div className="view-header">
+          <h1>Knowledge Map</h1>
+        </div>
+        <div className="skeleton skeleton-title" />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="skeleton skeleton-card" />
+        ))}
+      </div>
+    );
 
   const activeLens = data.lenses.find((definition) => definition.key === lens)!;
   const componentLabels = Object.fromEntries(
@@ -126,38 +137,50 @@ export function KnowledgeMapView() {
         </details>
       </section>
 
-      <div className="knowledge-filters" aria-label="Knowledge Map filters">
+      <div className="knowledge-filterbar" aria-label="Knowledge Map filters">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Filter title, path, or tag…"
           aria-label="Filter notes"
         />
-        <select value={folder} onChange={(event) => setFolder(event.target.value)} aria-label="Folder">
-          <option value="">All folders</option>
-          {folders.map((value) => (
-            <option key={value} value={value}>
-              {value || '(root)'}
-            </option>
-          ))}
-        </select>
-        <select value={tag} onChange={(event) => setTag(event.target.value)} aria-label="Tag">
-          <option value="">All tags</option>
-          {tags.map((value) => (
-            <option key={value} value={value}>
-              #{value}
-            </option>
-          ))}
-        </select>
-        <select
-          value={ratingFilter}
-          onChange={(event) => setRatingFilter(event.target.value as RatingFilter)}
-          aria-label="Rating status"
-        >
-          <option value="all">Rated + unrated</option>
-          <option value="rated">Rated only</option>
-          <option value="unrated">Unrated only</option>
-        </select>
+        <details className="knowledge-filter-more">
+          <summary>
+            Filters
+            {(folder || tag || ratingFilter !== 'all') && (
+              <span className="filter-count">
+                {[folder, tag, ratingFilter !== 'all'].filter(Boolean).length}
+              </span>
+            )}
+          </summary>
+          <div className="knowledge-filters">
+            <select value={folder} onChange={(event) => setFolder(event.target.value)} aria-label="Folder">
+              <option value="">All folders</option>
+              {folders.map((value) => (
+                <option key={value} value={value}>
+                  {value || '(root)'}
+                </option>
+              ))}
+            </select>
+            <select value={tag} onChange={(event) => setTag(event.target.value)} aria-label="Tag">
+              <option value="">All tags</option>
+              {tags.map((value) => (
+                <option key={value} value={value}>
+                  #{value}
+                </option>
+              ))}
+            </select>
+            <select
+              value={ratingFilter}
+              onChange={(event) => setRatingFilter(event.target.value as RatingFilter)}
+              aria-label="Rating status"
+            >
+              <option value="all">Rated + unrated</option>
+              <option value="rated">Rated only</option>
+              <option value="unrated">Unrated only</option>
+            </select>
+          </div>
+        </details>
       </div>
 
       <div className="knowledge-result-count">

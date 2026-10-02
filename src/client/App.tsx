@@ -72,7 +72,14 @@ export function App() {  const [config, setConfig] = useState<AppConfig | null>(
   useEffect(() => {
     document.documentElement.dataset.theme = effectiveTheme;
     document.documentElement.style.colorScheme = effectiveTheme;
-  }, [effectiveTheme]);
+    // Persist the chosen mode so the pre-paint script in index.html can match
+    // it on the next load (avoids a theme flash).
+    try {
+      localStorage.setItem("kv-theme", theme);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [effectiveTheme, theme]);
 
   // Close the mobile sidebar on navigation.
   useEffect(() => {

@@ -39,7 +39,7 @@ export function TagsView() {
                 return (
                   <button
                     key={t.tag}
-                    className={`tag-cloud-item${selected === t.tag ? " selected" : ""}`}
+                    className={selected === t.tag ? "selected" : ""}
                     title={`#${t.tag} — ${t.count} note${t.count === 1 ? "" : "s"}`}
                     onClick={() => void select(t.tag)}
                     style={{

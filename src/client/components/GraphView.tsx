@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Minus, RotateCcw } from 'lucide-react';
+import { Plus, Minus, RotateCcw, Play, Pause } from 'lucide-react';
 import { api, type GraphData } from '../api';
 
 const W = 900;
@@ -13,18 +13,33 @@ function radius(linkCount: number): number {
   return Math.max(4, Math.min(6 + Math.sqrt(Math.max(0, linkCount)) * 3, 20));
 }
 
-/** Rated notes render green, unrated render blue. */
+/** Rated notes render green, unrated render blue (via theme tokens). */
 function nodeColor(n: Node): string {
-  return n.rating !== undefined ? '#37c877' : '#4f8cff';
+  return n.rating !== undefined ? 'var(--ok)' : 'var(--accent)';
 }
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, v));
 }
 
+/** Stable per-node phase so drift looks organic but deterministic. */
+function hashPhase(id: string, salt = 0): number {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 1000) / 1000;
+}
+
 /**
- * Knowledge graph. SVG + a transform group for zoom/pan. No CSS `filter` on
- * SVG elements (Safari-safe); wheel/pinch zoom via passive:false listeners.
+ * Knowledge graph. SVG + a transform group for zoom/pan.
+ *
+ * Node positions are written imperatively (not through React) so the optional
+ * drift animation can run at frame rate without re-rendering ~700 elements:
+ * larger circles drift further, which separates overlapping nodes and lets the
+ * edges between them become visible. Drift pauses while panning/pinching and
+ * honours prefers-reduced-motion.
  */
 export function GraphView() {
   const [data, setData] = useState<GraphData>({ nodes: [], edges: [] });
@@ -36,6 +51,11 @@ export function GraphView() {
   const [pan, setPanState] = useState({ x: 0, y: 0 });
   const [search, setSearch] = useState('');
   const [focusOpen, setFocusOpen] = useState(false);
+  const [animate, setAnimate] = useState<boolean>(() =>
+    typeof window === 'undefined' || !window.matchMedia
+      ? true
+      : !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
   const navigate = useNavigate();
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -44,6 +64,14 @@ export function GraphView() {
   const dragRef = useRef<{ sx: number; sy: number; px: number; py: number; moved: boolean } | null>(null);
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+
+  // Imperative position plumbing.
+  const baseRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const nodeEls = useRef<Map<string, SVGGElement>>(new Map());
+  const edgeEls = useRef<Map<number, SVGLineElement>>(new Map());
+  const animateRef = useRef(animate);
+  const interactingRef = useRef(false);
+  animateRef.current = animate;
 
   const setZoom = (z: number) => {
     zoomRef.current = z;
@@ -133,6 +161,79 @@ export function GraphView() {
     return positions;
   }, [data]);
 
+  // Store the base layout and paint once whenever it changes.
+  useEffect(() => {
+    baseRef.current = layout;
+    paint(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout]);
+
+  // Write current positions (base + optional drift) straight to the DOM.
+  function paint(t: number) {
+    const base = baseRef.current;
+    const doDrift = animateRef.current && !interactingRef.current;
+    for (const n of data.nodes) {
+      const b = base.get(n.id);
+      const el = nodeEls.current.get(n.id);
+      if (!b || !el) continue;
+      let dx = 0;
+      let dy = 0;
+      if (doDrift) {
+        // Larger circles drift further, so overlapping nodes separate and the
+        // edges between them become visible.
+        const amp = 1.5 + radius(n.linkCount) * 0.45;
+        const ph = hashPhase(n.id) * Math.PI * 2;
+        const sp = 0.00035 + hashPhase(n.id, 7) * 0.00025;
+        dx = Math.sin(t * sp + ph) * amp;
+        dy = Math.cos(t * sp * 1.13 + ph) * amp;
+      }
+      el.setAttribute('transform', `translate(${b.x + dx},${b.y + dy})`);
+    }
+    for (const [i, e] of data.edges.entries()) {
+      const a = base.get(e.source);
+      const b = base.get(e.target);
+      const el = edgeEls.current.get(i);
+      if (!a || !b || !el) continue;
+      let ax = a.x, ay = a.y, bx = b.x, by = b.y;
+      if (doDrift) {
+        const an = data.nodes.find((n) => n.id === e.source);
+        const bn = data.nodes.find((n) => n.id === e.target);
+        if (an) {
+          const amp = 1.5 + radius(an.linkCount) * 0.45;
+          const ph = hashPhase(an.id) * Math.PI * 2;
+          const sp = 0.00035 + hashPhase(an.id, 7) * 0.00025;
+          ax += Math.sin(t * sp + ph) * amp;
+          ay += Math.cos(t * sp * 1.13 + ph) * amp;
+        }
+        if (bn) {
+          const amp = 1.5 + radius(bn.linkCount) * 0.45;
+          const ph = hashPhase(bn.id) * Math.PI * 2;
+          const sp = 0.00035 + hashPhase(bn.id, 7) * 0.00025;
+          bx += Math.sin(t * sp + ph) * amp;
+          by += Math.cos(t * sp * 1.13 + ph) * amp;
+        }
+      }
+      el.setAttribute('x1', String(ax));
+      el.setAttribute('y1', String(ay));
+      el.setAttribute('x2', String(bx));
+      el.setAttribute('y2', String(by));
+    }
+  }
+
+  // Animation loop (only while enabled and not interacting).
+  useEffect(() => {
+    let raf = 0;
+    let start = 0;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      if (animateRef.current) paint(ts - start);
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
   const neighbours = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const e of data.edges) {
@@ -182,6 +283,7 @@ export function GraphView() {
     if (e.target instanceof Element && e.target.closest('.node-g')) return;
     (e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    interactingRef.current = true;
     if (pointersRef.current.size === 1) {
       dragRef.current = { sx: e.clientX, sy: e.clientY, px: panRef.current.x, py: panRef.current.y, moved: false };
     } else if (pointersRef.current.size === 2) {
@@ -219,7 +321,10 @@ export function GraphView() {
   const endPointer = (e: React.PointerEvent<SVGSVGElement>) => {
     pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) pinchRef.current = null;
-    if (pointersRef.current.size === 0) dragRef.current = null;
+    if (pointersRef.current.size === 0) {
+      dragRef.current = null;
+      interactingRef.current = false;
+    }
   };
 
   const onNodeClick = (n: Node) => {
@@ -243,7 +348,7 @@ export function GraphView() {
   };
 
   const focusNode = (id: string) => {
-    const p = layout.get(id);
+    const p = baseRef.current.get(id);
     if (p) {
       setPan({ x: W / 2 - p.x * zoomRef.current, y: H / 2 - p.y * zoomRef.current });
     }
@@ -269,6 +374,15 @@ export function GraphView() {
           <span className="muted">{seed ? `Depth ${depth}` : 'All notes'}</span>
         </div>
         <div className="graph-zoom-controls">
+          <button
+            onClick={() => setAnimate((a) => !a)}
+            aria-pressed={animate}
+            aria-label={animate ? 'Pause animation' : 'Play animation'}
+            title={animate ? 'Pause motion' : 'Animate — larger circles drift so links show'}
+          >
+            {animate ? <Pause size={14} strokeWidth={1.75} /> : <Play size={14} strokeWidth={1.75} />}
+            {animate ? 'Pause' : 'Animate'}
+          </button>
           <button onClick={() => zoomBy(1.2)} aria-label="Zoom in"><Plus size={15} strokeWidth={1.75} /></button>
           <button onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out"><Minus size={15} strokeWidth={1.75} /></button>
           <button onClick={resetView} aria-label="Reset view"><RotateCcw size={14} strokeWidth={1.75} /> Reset</button>
@@ -309,15 +423,15 @@ export function GraphView() {
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
             <g>
               {data.edges.map((e, i) => {
-                const a = layout.get(e.source);
-                const b = layout.get(e.target);
-                if (!a || !b) return null;
                 const dim = activeId ? !(e.source === activeId || e.target === activeId) : false;
                 const active = activeId && (e.source === activeId || e.target === activeId);
                 return (
                   <line
                     key={i}
-                    x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                    ref={(el) => {
+                      if (el) edgeEls.current.set(i, el);
+                      else edgeEls.current.delete(i);
+                    }}
                     className={`edge${active ? ' edge-active' : ''}`}
                     strokeOpacity={dim ? 0.1 : active ? 1 : 0.5}
                   />
@@ -326,15 +440,16 @@ export function GraphView() {
             </g>
             <g>
               {data.nodes.map((n) => {
-                const p = layout.get(n.id);
-                if (!p) return null;
                 const isActive = activeId === n.id;
                 const isNeighbour = activeId && activeNeighbours.has(n.id);
                 const dim = activeId ? !(isActive || isNeighbour) : false;
                 return (
                   <g
                     key={n.id}
-                    transform={`translate(${p.x},${p.y})`}
+                    ref={(el) => {
+                      if (el) nodeEls.current.set(n.id, el);
+                      else nodeEls.current.delete(n.id);
+                    }}
                     className="node-g"
                     style={{ opacity: dim ? 0.2 : 1, cursor: 'pointer' }}
                     onClick={() => onNodeClick(n)}
@@ -345,10 +460,10 @@ export function GraphView() {
                     <circle
                       r={radius(n.linkCount)}
                       fill={nodeColor(n)}
-                      stroke={isActive ? '#e0a63a' : 'rgba(0,0,0,0.25)'}
+                      stroke={isActive ? 'var(--warn)' : 'rgba(0,0,0,0.25)'}
                       strokeWidth={isActive ? 3 : 1.5}
                     />
-                    {isActive && <circle r={radius(n.linkCount) + 5} fill="none" stroke="#e0a63a" strokeWidth={1} opacity={0.6} />}
+                    {isActive && <circle r={radius(n.linkCount) + 5} fill="none" stroke="var(--warn)" strokeWidth={1} opacity={0.6} />}
                   </g>
                 );
               })}
@@ -381,6 +496,7 @@ export function GraphView() {
 
       <p className="muted hint">
         Scroll/pinch to zoom · drag to pan · hover a node to highlight its links · click to open.
+        {animate ? ' Larger circles drift so their links stay visible.' : ''}
       </p>
     </div>
   );
