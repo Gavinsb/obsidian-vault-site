@@ -11,6 +11,8 @@
   --warn: #e0a63a;
   --err: #e2574f;
   --star-empty: #4d5b74;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
   --radius-pill: 999px;

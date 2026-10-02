@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { HealthIssue } from '../api';
 import { api } from '../api';
 
@@ -19,7 +19,8 @@ const KIND_LABEL: Record<string, string> = {
 export function HealthView() {
   const [issues, setIssues] = useState<HealthIssue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [params] = useSearchParams();
+  const [filter, setFilter] = useState(params.get('kind') ?? 'all');
 
   useEffect(() => {
     api

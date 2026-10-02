@@ -164,11 +164,15 @@ export function Dashboard({ siteName }: { siteName: string }) {
         <Stat
           label="Broken links"
           value={stats?.brokenLinkCount ?? "—"}
-          to="/health"
+          to="/health?kind=broken-link"
           tone={stats?.brokenLinkCount ? "warn" : undefined}
         />
         <Stat label="Avg rating" value={stats?.avgRating ?? "—"} />
-        <Stat label="Unrated" value={stats?.unratedCount ?? "—"} to="/search?rating=unrated" />
+        <Stat
+          label="Unrated"
+          value={stats?.unratedCount ?? "—"}
+          to="/health?kind=unrated"
+        />
       </div>
 
       <div className="dash-cols">
