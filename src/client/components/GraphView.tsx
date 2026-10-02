@@ -22,24 +22,14 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, v));
 }
 
-/** Stable per-node phase so drift looks organic but deterministic. */
-function hashPhase(id: string, salt = 0): number {
-  let h = 2166136261 ^ salt;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 1000) / 1000;
-}
-
 /**
  * Knowledge graph. SVG + a transform group for zoom/pan.
  *
- * Node positions are written imperatively (not through React) so the optional
- * drift animation can run at frame rate without re-rendering ~700 elements:
- * larger circles drift further, which separates overlapping nodes and lets the
- * edges between them become visible. Drift pauses while panning/pinching and
- * honours prefers-reduced-motion.
+ * The visible layout is a true damped force simulation (no d3): nodes repel,
+ * every edge acts as a spring, and a soft centre force keeps the cloud in
+ * frame. Positions are written imperatively each frame — never through React —
+ * so the loop stays smooth with hundreds of nodes. The simulation runs until
+ * it settles, pauses while panning/pinching, and re-energises on demand.
  */
 export function GraphView() {
   const [data, setData] = useState<GraphData>({ nodes: [], edges: [] });
@@ -51,11 +41,14 @@ export function GraphView() {
   const [pan, setPanState] = useState({ x: 0, y: 0 });
   const [search, setSearch] = useState('');
   const [focusOpen, setFocusOpen] = useState(false);
-  const [animate, setAnimate] = useState<boolean>(() =>
+  // Reduced motion: still run the simulation (it is informative, not decorative)
+  // but settle immediately instead of animating the convergence.
+  const [reducedMotion] = useState<boolean>(() =>
     typeof window === 'undefined' || !window.matchMedia
-      ? true
-      : !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      ? false
+      : window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
+  const [simRunning, setSimRunning] = useState(true);
   const navigate = useNavigate();
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -69,9 +62,16 @@ export function GraphView() {
   const baseRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const nodeEls = useRef<Map<string, SVGGElement>>(new Map());
   const edgeEls = useRef<Map<number, SVGLineElement>>(new Map());
-  const animateRef = useRef(animate);
   const interactingRef = useRef(false);
-  animateRef.current = animate;
+  const settledRef = useRef(false);
+  const simRef = useRef<{
+    ids: string[];
+    edges: { s: number; t: number }[];
+    pos: Float64Array;
+    vel: Float64Array;
+    radius: Float64Array;
+    alpha: number;
+  }>({ ids: [], edges: [], pos: new Float64Array(0), vel: new Float64Array(0), radius: new Float64Array(0), alpha: 0 });
 
   const setZoom = (z: number) => {
     zoomRef.current = z;
@@ -83,150 +83,177 @@ export function GraphView() {
   };
 
   // Force layout (Fruchterman–Reingold) + fit-to-view so all nodes spread
-  // visibly and never collapse into one blob.
-  const layout = useMemo(() => {
+  // Seed the simulation from the circles-around-a-ring initial guess, then let
+  // the force loop converge it. Deterministic (index-based) so a given vault
+  // always lays out the same way.
+  const seedSim = () => {
     const { nodes, edges } = data;
-    const positions = new Map<string, { x: number; y: number }>();
+    const ids = nodes.map((n) => n.id);
+    const index = new Map(ids.map((id, i) => [id, i]));
+    const pos = new Float64Array(ids.length * 2);
+    const vel = new Float64Array(ids.length * 2);
+    const rad = new Float64Array(ids.length);
     nodes.forEach((n, i) => {
       const angle = (i / Math.max(1, nodes.length)) * Math.PI * 2;
       const r = 60 + (i % 7) * 22;
-      positions.set(n.id, {
-        x: W / 2 + Math.cos(angle) * r,
-        y: H / 2 + Math.sin(angle) * r,
-      });
+      pos[i * 2] = W / 2 + Math.cos(angle) * r;
+      pos[i * 2 + 1] = H / 2 + Math.sin(angle) * r;
+      rad[i] = radius(n.linkCount);
     });
-    const adj = new Map<string, Set<string>>();
+    const simEdges = edges
+      .map((e) => ({ s: index.get(e.source) ?? -1, t: index.get(e.target) ?? -1 }))
+      .filter((e) => e.s >= 0 && e.t >= 0);
+    simRef.current = {
+      ids,
+      edges: simEdges,
+      pos,
+      vel,
+      radius: rad,
+      alpha: reducedMotion ? 0 : 1,
+    };
+    baseRef.current = new Map(
+      ids.map((id, i) => [id, { x: pos[i * 2], y: pos[i * 2 + 1] }]),
+    );
+    settledRef.current = reducedMotion;
+  };
+
+  // Re-energise the simulation (used by the Re-run button and on data change).
+  const reheat = (alpha = 0.9) => {
+    simRef.current.alpha = Math.max(simRef.current.alpha, alpha);
+    settledRef.current = false;
+    setSimRunning(true);
+    if (reducedMotion) {
+      // Run to completion synchronously for reduced-motion users.
+      for (let i = 0; i < 320; i++) simStep(0.022);
+      simRef.current.alpha = 0;
+      settledRef.current = true;
+      setSimRunning(false);
+      paint();
+    }
+  };
+
+  /**
+   * One physics tick: pairwise repulsion, spring attraction along edges,
+   * soft centre gravity, velocity integration with cooling (alpha) and
+   * damping, and a hard clamp that keeps nodes inside the viewBox.
+   */
+  function simStep(dt: number) {
+    const s = simRef.current;
+    const n = s.ids.length;
+    if (!n) return;
+    const { pos, vel, radius: rad, edges } = s;
+    const alpha = s.alpha;
+    const k = 150;          // ideal edge length
+    const repulsion = 5200; // node repulsion strength
+    const damping = 0.82;   // velocity retained per tick
+
+    // Repulsion between every pair (intended for a single-user vault's size).
+    for (let i = 0; i < n; i++) {
+      const ix = i * 2;
+      for (let j = i + 1; j < n; j++) {
+        const jx = j * 2;
+        let dx = pos[ix] - pos[jx];
+        let dy = pos[ix + 1] - pos[jx + 1];
+        let d2 = dx * dx + dy * dy;
+        if (d2 < 0.01) {
+          // Deterministic nudge so exactly-overlapping nodes separate.
+          dx = ((i % 7) - 3) * 0.5;
+          dy = ((j % 7) - 3) * 0.5;
+          d2 = dx * dx + dy * dy + 0.01;
+        }
+        const d = Math.sqrt(d2);
+        const minD = rad[i] + rad[j] + 8;
+        const f = (repulsion * alpha) / Math.max(d2, minD * minD);
+        const fx = (dx / d) * f;
+        const fy = (dy / d) * f;
+        vel[ix] += fx; vel[ix + 1] += fy;
+        vel[jx] -= fx; vel[jx + 1] -= fy;
+      }
+    }
+
+    // Spring attraction along edges.
     for (const e of edges) {
-      if (!adj.has(e.source)) adj.set(e.source, new Set());
-      if (!adj.has(e.target)) adj.set(e.target, new Set());
-      adj.get(e.source)!.add(e.target);
-      adj.get(e.target)!.add(e.source);
+      const ix = e.s * 2;
+      const jx = e.t * 2;
+      const dx = pos[jx] - pos[ix];
+      const dy = pos[jx + 1] - pos[ix + 1];
+      const d = Math.max(1, Math.hypot(dx, dy));
+      const f = ((d - k) * 0.09 * alpha);
+      const fx = (dx / d) * f;
+      const fy = (dy / d) * f;
+      vel[ix] += fx; vel[ix + 1] += fy;
+      vel[jx] -= fx; vel[jx + 1] -= fy;
     }
-    const k = 170; // ideal edge length
-    for (let it = 0; it < 250; it++) {
-      const maxDisp = Math.max(1, 30 * (1 - it / 250));
-      for (const n of nodes) {
-        const p = positions.get(n.id)!;
-        let fx = 0;
-        let fy = 0;
-        for (const m of nodes) {
-          if (m.id === n.id) continue;
-          const q = positions.get(m.id)!;
-          const dx = p.x - q.x;
-          const dy = p.y - q.y;
-          const d2 = Math.max(60, dx * dx + dy * dy);
-          const d = Math.sqrt(d2);
-          const f = (k * k) / d; // repulsion
-          fx += (dx / d) * f;
-          fy += (dy / d) * f;
-        }
-        const neigh = adj.get(n.id);
-        if (neigh) {
-          for (const other of neigh) {
-            const q = positions.get(other);
-            if (!q) continue;
-            const dx = q.x - p.x;
-            const dy = q.y - p.y;
-            const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-            const f = (d * d) / k; // attraction
-            fx += (dx / d) * f;
-            fy += (dy / d) * f;
-          }
-        }
-        // Symmetric center gravity keeps the cloud balanced (no runaway elongation).
-        fx += (W / 2 - p.x) * 0.04;
-        fy += (H / 2 - p.y) * 0.04;
-        const mag = Math.sqrt(fx * fx + fy * fy) || 1;
-        const disp = Math.min(mag, maxDisp);
-        p.x += (fx / mag) * disp;
-        p.y += (fy / mag) * disp;
-      }
-    }
-    // Fit to the viewBox with padding (keeps every node on screen).
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const p of positions.values()) {
-      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
-    }
-    const pad = 70;
-    const sx = maxX - minX > 1 ? (W - pad * 2) / (maxX - minX) : 1;
-    const sy = maxY - minY > 1 ? (H - pad * 2) / (maxY - minY) : 1;
-    const s = Math.min(sx, sy, 1.4);
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    for (const p of positions.values()) {
-      p.x = W / 2 + (p.x - cx) * s;
-      p.y = H / 2 + (p.y - cy) * s;
-    }
-    return positions;
-  }, [data]);
 
-  // Store the base layout and paint once whenever it changes.
-  useEffect(() => {
-    baseRef.current = layout;
-    paint(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout]);
-
-  // Write current positions (base + optional drift) straight to the DOM.
-  function paint(t: number) {
-    const base = baseRef.current;
-    const doDrift = animateRef.current && !interactingRef.current;
-    for (const n of data.nodes) {
-      const b = base.get(n.id);
-      const el = nodeEls.current.get(n.id);
-      if (!b || !el) continue;
-      let dx = 0;
-      let dy = 0;
-      if (doDrift) {
-        // Larger circles drift further, so overlapping nodes separate and the
-        // edges between them become visible.
-        const amp = 1.5 + radius(n.linkCount) * 0.45;
-        const ph = hashPhase(n.id) * Math.PI * 2;
-        const sp = 0.00035 + hashPhase(n.id, 7) * 0.00025;
-        dx = Math.sin(t * sp + ph) * amp;
-        dy = Math.cos(t * sp * 1.13 + ph) * amp;
-      }
-      el.setAttribute('transform', `translate(${b.x + dx},${b.y + dy})`);
+    // Centre gravity + integrate + clamp.
+    const pad = 40;
+    for (let i = 0; i < n; i++) {
+      const ix = i * 2;
+      vel[ix] += (W / 2 - pos[ix]) * 0.012 * alpha;
+      vel[ix + 1] += (H / 2 - pos[ix + 1]) * 0.012 * alpha;
+      vel[ix] *= damping;
+      vel[ix + 1] *= damping;
+      pos[ix] += vel[ix] * dt * 60;
+      pos[ix + 1] += vel[ix + 1] * dt * 60;
+      pos[ix] = clamp(pos[ix], pad, W - pad);
+      pos[ix + 1] = clamp(pos[ix + 1], pad, H - pad);
     }
-    for (const [i, e] of data.edges.entries()) {
-      const a = base.get(e.source);
-      const b = base.get(e.target);
-      const el = edgeEls.current.get(i);
-      if (!a || !b || !el) continue;
-      let ax = a.x, ay = a.y, bx = b.x, by = b.y;
-      if (doDrift) {
-        const an = data.nodes.find((n) => n.id === e.source);
-        const bn = data.nodes.find((n) => n.id === e.target);
-        if (an) {
-          const amp = 1.5 + radius(an.linkCount) * 0.45;
-          const ph = hashPhase(an.id) * Math.PI * 2;
-          const sp = 0.00035 + hashPhase(an.id, 7) * 0.00025;
-          ax += Math.sin(t * sp + ph) * amp;
-          ay += Math.cos(t * sp * 1.13 + ph) * amp;
-        }
-        if (bn) {
-          const amp = 1.5 + radius(bn.linkCount) * 0.45;
-          const ph = hashPhase(bn.id) * Math.PI * 2;
-          const sp = 0.00035 + hashPhase(bn.id, 7) * 0.00025;
-          bx += Math.sin(t * sp + ph) * amp;
-          by += Math.cos(t * sp * 1.13 + ph) * amp;
-        }
-      }
-      el.setAttribute('x1', String(ax));
-      el.setAttribute('y1', String(ay));
-      el.setAttribute('x2', String(bx));
-      el.setAttribute('y2', String(by));
+
+    // Cool. Stop when effectively settled.
+    s.alpha *= 0.985;
+    let maxV = 0;
+    for (let i = 0; i < n; i++) {
+      maxV = Math.max(maxV, Math.abs(vel[i * 2]), Math.abs(vel[i * 2 + 1]));
+    }
+    if (s.alpha < 0.02 || maxV < 0.05) {
+      s.alpha = 0;
+      settledRef.current = true;
+      setSimRunning(false);
     }
   }
 
-  // Animation loop (only while enabled and not interacting).
+  // Mirror simulation positions into the DOM (nodes) and the edge lines.
+  function paint() {
+    const s = simRef.current;
+    if (!s.ids.length) return;
+    for (let i = 0; i < s.ids.length; i++) {
+      const el = nodeEls.current.get(s.ids[i]);
+      if (el) el.setAttribute('transform', `translate(${s.pos[i * 2]},${s.pos[i * 2 + 1]})`);
+    }
+    for (let i = 0; i < s.edges.length; i++) {
+      const el = edgeEls.current.get(i);
+      if (!el) continue;
+      const { s: a, t: b } = s.edges[i];
+      el.setAttribute('x1', String(s.pos[a * 2]));
+      el.setAttribute('y1', String(s.pos[a * 2 + 1]));
+      el.setAttribute('x2', String(s.pos[b * 2]));
+      el.setAttribute('y2', String(s.pos[b * 2 + 1]));
+    }
+    // Keep the memoised map in sync so focusNode() targets the live position.
+    const map = baseRef.current;
+    for (let i = 0; i < s.ids.length; i++) {
+      const p = map.get(s.ids[i]);
+      if (p) { p.x = s.pos[i * 2]; p.y = s.pos[i * 2 + 1]; }
+    }
+  }
+
+  // (Re)seed whenever the graph data changes.
+  useEffect(() => {
+    seedSim();
+    if (!reducedMotion) reheat(1);
+    paint();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, reducedMotion]);
+
+  // Simulation loop: runs while alpha > 0 and the user is not interacting.
   useEffect(() => {
     let raf = 0;
-    let start = 0;
-    const step = (ts: number) => {
-      if (!start) start = ts;
-      if (animateRef.current) paint(ts - start);
+    const step = () => {
+      const s = simRef.current;
+      if (s.alpha > 0 && !interactingRef.current) {
+        simStep(0.022);
+        paint();
+      }
       raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
@@ -284,6 +311,8 @@ export function GraphView() {
     (e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     interactingRef.current = true;
+    // Panning/pinching must not fight the simulation: freeze it for the drag.
+    if (!settledRef.current) reheat(0.6);
     if (pointersRef.current.size === 1) {
       dragRef.current = { sx: e.clientX, sy: e.clientY, px: panRef.current.x, py: panRef.current.y, moved: false };
     } else if (pointersRef.current.size === 2) {
@@ -375,13 +404,12 @@ export function GraphView() {
         </div>
         <div className="graph-zoom-controls">
           <button
-            onClick={() => setAnimate((a) => !a)}
-            aria-pressed={animate}
-            aria-label={animate ? 'Pause animation' : 'Play animation'}
-            title={animate ? 'Pause motion' : 'Animate — larger circles drift so links show'}
+            onClick={() => reheat(1)}
+            aria-label="Re-run layout simulation"
+            title="Re-run the force layout (unsettle and re-settle the graph)"
           >
-            {animate ? <Pause size={14} strokeWidth={1.75} /> : <Play size={14} strokeWidth={1.75} />}
-            {animate ? 'Pause' : 'Animate'}
+            <Play size={14} strokeWidth={1.75} />
+            {simRunning && !settledRef.current ? 'Simulating…' : 'Re-run layout'}
           </button>
           <button onClick={() => zoomBy(1.2)} aria-label="Zoom in"><Plus size={15} strokeWidth={1.75} /></button>
           <button onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out"><Minus size={15} strokeWidth={1.75} /></button>
@@ -496,7 +524,7 @@ export function GraphView() {
 
       <p className="muted hint">
         Scroll/pinch to zoom · drag to pan · hover a node to highlight its links · click to open.
-        {animate ? ' Larger circles drift so their links stay visible.' : ''}
+        {simRunning ? ' Simulating the layout…' : ' Layout settled — click Re-run layout to shake it apart again.'}
       </p>
     </div>
   );
